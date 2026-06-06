@@ -191,12 +191,12 @@ function PlayerView({ user, onLogout }) {
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                   <div>
                     <p style={{ color:'#888', fontSize:'0.75rem' }}>BAC SERATA</p>
-                    <div style={{ fontFamily:'Bebas Neue', fontSize:'2.5rem', color:bs.color, lineHeight:1 }}>{(bac*100).toFixed(3)}%</div>
+                    <div style={{ fontFamily:'Bebas Neue', fontSize:'2.5rem', color:bs.color, lineHeight:1 }}>{bac.toFixed(3)}%</div>
                     <span style={{ background:bs.color+'22', color:bs.color, fontSize:'0.75rem', padding:'0.2rem 0.5rem', borderRadius:'4px' }}>{bs.label}</span>
                   </div>
                   <div style={{ textAlign:'right' }}>
                     <p style={{ color:'#888', fontSize:'0.7rem' }}>BAC OVERALL</p>
-                    <div style={{ fontFamily:'Bebas Neue', fontSize:'1.5rem', color:'#888' }}>{(bacOverall*100).toFixed(3)}%</div>
+                    <div style={{ fontFamily:'Bebas Neue', fontSize:'1.5rem', color:'#888' }}>{bacOverall.toFixed(3)}%</div>
                   </div>
                 </div>
                 <p style={{ color:'#555', fontSize:'0.65rem', marginTop:'0.5rem' }}>Stima indicativa. Non guidare.</p>
@@ -271,7 +271,7 @@ function PlayerView({ user, onLogout }) {
                     <span style={{ width:36, height:36, background:i<3?'#F5C518':'#2e2e2e', borderRadius:'8px', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Bebas Neue', fontSize:'1rem', color:i<3?'#000':'#888', flexShrink:0 }}>{i<3?['👑','2','3'][i]:i+1}</span>
                     <div style={{ flex:1 }}>
                       <div style={{ fontFamily:'Bebas Neue', fontSize:'1.3rem', color:isMe?'#F5C518':'#f0f0f0' }}>{player.username}{isMe&&<span style={{ background:'#F5C518', color:'#000', fontSize:'0.6rem', padding:'0.1rem 0.3rem', borderRadius:'3px', marginLeft:'0.5rem' }}>TU</span>}</div>
-                      <div style={{ color:'#888', fontSize:'0.75rem' }}>{dks} drink{pBac!==null?` / BAC ${(pBac*100).toFixed(3)}%`:''}</div>
+                      <div style={{ color:'#888', fontSize:'0.75rem' }}>{dks} drink{pBac!==null?` / BAC ${pBac.toFixed(3)}%`:''}</div>
                     </div>
                     <div style={{ fontFamily:'Bebas Neue', fontSize:'1.8rem', color:i===0?'#F5C518':'#f0f0f0' }}>{pts}</div>
                   </div>
