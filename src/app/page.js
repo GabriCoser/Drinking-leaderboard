@@ -112,6 +112,7 @@ function PlayerView({ user, onLogout }) {
   const [food, setFood] = useState('non_specificato')
   const [now, setNow] = useState(Date.now())
   const [selectedSession, setSelectedSession] = useState(null)
+  const [viewingPlayer, setViewingPlayer] = useState(null)
   const [bacForm, setBacForm] = useState({ weight:'', height:'', age:'', sex:'M' })
   const [bacSaved, setBacSaved] = useState(false)
   const [avatar, setAvatar] = useState(null)
@@ -270,8 +271,8 @@ function PlayerView({ user, onLogout }) {
                   <div style={{ display:'flex', alignItems:'center', gap:'1rem' }}>
                     <span style={{ width:36, height:36, background:i<3?'#F5C518':'#2e2e2e', borderRadius:'8px', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Bebas Neue', fontSize:'1rem', color:i<3?'#000':'#888', flexShrink:0 }}>{i<3?['👑','2','3'][i]:i+1}</span>
                     <div style={{ flex:1 }}>
-                      <div style={{ fontFamily:'Bebas Neue', fontSize:'1.3rem', color:isMe?'#F5C518':'#f0f0f0' }}>{player.username}{isMe&&<span style={{ background:'#F5C518', color:'#000', fontSize:'0.6rem', padding:'0.1rem 0.3rem', borderRadius:'3px', marginLeft:'0.5rem' }}>TU</span>}</div>
-                      <div style={{ color:'#888', fontSize:'0.75rem' }}>{dks} drink{pBac!==null?` / BAC ${pBac.toFixed(3)}%`:''}</div>
+                      <div onClick={()=>setViewingPlayer(viewingPlayer===player.username?null:player.username)} style={{ fontFamily:'Bebas Neue', fontSize:'1.3rem', color:isMe?'#F5C518':'#f0f0f0', cursor:'pointer' }}>{player.username}{isMe&&<span style={{ background:'#F5C518', color:'#000', fontSize:'0.6rem', padding:'0.1rem 0.3rem', borderRadius:'3px', marginLeft:'0.5rem' }}>TU</span>} <span style={{fontSize:'0.7rem', color:'#555'}}>{viewingPlayer===player.username?'▲':'▼'}</span></div>
+                      <div style={{ color:'#888', fontSize:'0.75rem' }} onClick={()=>setViewingPlayer(viewingPlayer===player.username?null:player.username)}>{dks} drink{pBac!==null?` / BAC ${pBac.toFixed(3)}%`:''}</div>
                     </div>
                     <div style={{ fontFamily:'Bebas Neue', fontSize:'1.8rem', color:i===0?'#F5C518':'#f0f0f0' }}>{pts}</div>
                   </div>
