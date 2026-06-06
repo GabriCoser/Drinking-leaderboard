@@ -317,6 +317,21 @@ function PlayerView({ user, onLogout }) {
               ))}
             </div>
           </div>
+            {viewingPlayer===player.username && (
+              <div style={{marginTop:'0.5rem',borderTop:'1px solid #2e2e2e',paddingTop:'0.5rem'}}>
+                {((selectedSession?(player.sessionLog||[]).filter(e=>e.sessionId===selectedSession):(player.sessionLog||[])).length===0)
+                  ? <p style={{color:'#555',fontSize:'0.75rem',textAlign:'center'}}>Nessun drink</p>
+                  : (selectedSession?(player.sessionLog||[]).filter(e=>e.sessionId===selectedSession):(player.sessionLog||[])).map((e,idx)=>(
+                    <div key={idx} style={{display:'flex',alignItems:'center',gap:'0.5rem',padding:'0.25rem 0',borderBottom:'1px solid #1a1a1a'}}>
+                      <span>{e.emoji}</span>
+                      <div style={{flex:1}}><div style={{color:'#f0f0f0',fontSize:'0.8rem'}}>{e.name}</div><div style={{color:'#555',fontSize:'0.65rem'}}>{fmtDate(e.timestamp)} {fmtTime(e.timestamp)}</div></div>
+                      <div style={{fontFamily:'Bebas Neue',color:'#F5C518',fontSize:'0.9rem'}}>{e.points}pt</div>
+                    </div>
+                  ))
+                }
+              </div>
+            )}
+          </div>
         )}
         {tab==='profile' && (
           <div style={{ display:'flex', flexDirection:'column', gap:'1rem' }}>
