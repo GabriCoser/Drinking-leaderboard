@@ -60,3 +60,10 @@ export async function getLeaderboard(sessionId = null) {
     return { username: u.username, points, drinks: userLog.length, bac_info: u.bac_info, sessionLog: log.filter(e => e.username === u.username) }
   }).sort((a, b) => b.points - a.points)
 }
+export async function deleteSession(sessionId) {
+  const sessions = await getSessions()
+  const filtered = sessions.filter(s => s.id !== sessionId)
+  await redis.set('sessions', JSON.stringify(filtered))
+  const log = await getDrinkLog()
+  await redis.set('drinklog', JSON.stringify(log.filter(e => e.sessionId !== sessionId)))
+}

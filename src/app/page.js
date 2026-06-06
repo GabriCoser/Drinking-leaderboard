@@ -313,7 +313,7 @@ function AdminPanel({ onLogout }) {
     await fetch('/api/sessions', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name:newSessionName}) })
     setNewSessionName(''); showMsg('Serata creata!'); load()
   }
-  async function closeSession(id) {
+  async function deleteSession(id) { if (!window.confirm("Eliminare la serata e tutti i drink?")) return; await fetch("/api/sessions", { method:"DELETE", headers:{"Content-Type":"application/json"}, body: JSON.stringify({sessionId:id, action:"delete"}) }); showMsg("Serata eliminata"); load(); } async function closeSession(id) {
     if (!confirm('Chiudere la serata?')) return
     await fetch('/api/sessions', { method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({sessionId:id}) })
     showMsg('Serata chiusa'); load()
@@ -366,7 +366,7 @@ function AdminPanel({ onLogout }) {
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
                 <div><div style={{ fontFamily:'Bebas Neue', fontSize:'1.2rem', color:sess.active?'#F5C518':'#f0f0f0' }}>{sess.name}</div>
                 <div style={{ color:'#888', fontSize:'0.75rem' }}>{fmtDate(sess.createdAt)} {fmtTime(sess.createdAt)}</div></div>
-                {sess.active?<button onClick={()=>closeSession(sess.id)} style={s.btn('#2e2e2e','#e03c3c',{fontSize:'0.8rem'})}>Chiudi</button>:<span style={{ color:'#555', fontSize:'0.75rem' }}>Chiusa</span>}
+                {sess.active?<button onClick={()=>closeSession(sess.id)} style={s.btn('#2e2e2e','#e03c3c',{fontSize:'0.8rem'})}>Chiudi</button>:<button onClick={()=>deleteSession(sess.id)} style={s.btn('#2e2e2e','#e03c3c',{fontSize:'0.8rem',opacity:0.6})}>Elimina</button>}
               </div>
             </div>
           ))}
