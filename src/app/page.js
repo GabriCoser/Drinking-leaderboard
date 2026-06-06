@@ -439,7 +439,7 @@ function AdminPanel({ onLogout }) {
         <button onClick={logout} style={s.btn('#2e2e2e','#888',{fontSize:'0.85rem',padding:'0.4rem 0.8rem'})}>Esci</button>
       </div>
       <div style={{ display:'flex', gap:'0.4rem', marginBottom:'1.5rem', overflowX:'auto' }}>
-        {[['sessions','📅'],['players','👥'],['drinks_mgmt','🍺'],['add_user','➕']].map(([k,l]) => (
+        {[['sessions','📅'],['players','👥'],['drinks_mgmt','🍺'],['add_user','➕'],['stats','📊']].map(([k,l]) => (
           <button key={k} onClick={()=>setTab(k)} style={s.btn(tab===k?'#F5C518':'#1a1a1a',tab===k?'#000':'#888',{flex:1,fontSize:'1.2rem',border:'1px solid #2e2e2e',minWidth:50})}>{l}</button>
         ))}
       </div>
@@ -499,6 +499,59 @@ function AdminPanel({ onLogout }) {
               <button onClick={()=>removeDrink(drink.id)} style={s.btn('#2e2e2e','#e03c3c',{padding:'0.3rem 0.6rem',fontSize:'0.8rem'})}>X</button>
             </div>
           ))}
+        </div>
+      )}
+      {tab==='stats'&&(
+        <div style={{display:'flex',flexDirection:'column',gap:'1rem'}}>
+          {activeSession ? (() => {
+            const sessionLog = players.flatMap(p=>(p.sessionLog||[]).filter(e=>e.sessionId===activeSession.id))
+            const totalDrinks = sessionLog.length
+            const activePlayers = players.filter(p=>(p.sessionLog||[]).some(e=>e.sessionId===activeSession.id))
+            const avg = activePlayers.length ? (totalDrinks/activePlayers.length).toFixed(1) : 0
+            const drinkCount = {}
+            sessionLog.forEach(e=>{drinkCount[e.name]=(drinkCount[e.name]||0)+1})
+            const topDrink = Object.entries(drinkCount).sort((a,b)=>b[1]-a[1])[0]
+            const playerCount = {}
+            sessionLog.forEach(e=>{playerCount[e.username]=(playerCount[e.username]||0)+1})
+            const topPlayer = Object.entries(playerCount).sort((a,b)=>b[1]-a[1])[0]
+            return <>
+              <div style={s.card(true)}>
+                <h3 style={{fontFamily:'Bebas Neue',fontSize:'1.3rem',color:'#F5C518',marginBottom:'1rem'}}>📊 {activeSession.name}</h3>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem'}}>
+                  <div style={{background:'#0d0d0d',borderRadius:'8px',padding:'0.75rem',textAlign:'center'}}>
+                    <div style={{fontFamily:'Bebas Neue',fontSize:'2.5rem',color:'#F5C518'}}>{totalDrinks}</div>
+                    <div style={{color:'#888',fontSize:'0.75rem'}}>Drink totali</div>
+                  </div>
+                  <div style={{background:'#0d0d0d',borderRadius:'8px',padding:'0.75rem',textAlign:'center'}}>
+                    <div style={{fontFamily:'Bebas Neue',fontSize:'2.5rem',color:'#f0f0f0'}}>{avg}</div>
+                    <div style={{color:'#888',fontSize:'0.75rem'}}>Media a testa</div>
+                  </div>
+                  <div style={{background:'#0d0d0d',borderRadius:'8px',padding:'0.75rem',textAlign:'center'}}>
+                    <div style={{fontFamily:'Bebas Neue',fontSize:'1.3rem',color:'#3ce08a'}}>{topDrink?topDrink[0]:'-'}</div>
+                    <div style={{color:'#888',fontSize:'0.75rem'}}>Drink più bevuto {topDrink?'('+topDrink[1]+'x)':''}</div>
+                  </div>
+                  <div style={{background:'#0d0d0d',borderRadius:'8px',padding:'0.75rem',textAlign:'center'}}>
+                    <div style={{fontFamily:'Bebas Neue',fontSize:'1.3rem',color:'#3ce08a'}}>{topPlayer?topPlayer[0]:'-'}</div>
+                    <div style={{color:'#888',fontSize:'0.75rem'}}>Più attivo {topPlayer?'('+topPlayer[1]+' drink)':''}</div>
+                  </div>
+                </div>
+              </div>
+              <div style={s.card()}>
+                <h3 style={{fontFamily:'Bebas Neue',fontSize:'1.2rem',color:'#888',marginBottom:'0.75rem'}}>CLASSIFICA SERATA</h3>
+                {players.filter(p=>p.role!=='admin').map((p,i)=>{
+                  const pts=(p.sessionLog||[]).filter(e=>e.sessionId===activeSession.id).reduce((s,e)=>s+e.points,0)
+                  const dks=(p.sessionLog||[]).filter(e=>e.sessionId===activeSession.id).length
+                  if(dks===0) return null
+                  return <div key={p.username} style={{display:'flex',alignItems:'center',gap:'1rem',padding:'0.4rem 0',borderBottom:'1px solid #1a1a1a'}}>
+                    <span style={{fontFamily:'Bebas Neue',color:'#555',width:20}}>{i+1}</span>
+                    <div style={{flex:1,fontFamily:'Bebas Neue',fontSize:'1.1rem'}}>{p.username}</div>
+                    <span style={{color:'#888',fontSize:'0.8rem'}}>{dks} drink</span>
+                    <span style={{fontFamily:'Bebas Neue',color:'#F5C518',fontSize:'1.2rem'}}>{pts}pt</span>
+                  </div>
+                })}
+              </div>
+            </>
+          })() : <p style={{color:'#888',textAlign:'center',padding:'2rem'}}>Nessuna serata attiva</p>}
         </div>
       )}
       {tab==='add_user'&&(
