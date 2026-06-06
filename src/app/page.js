@@ -117,6 +117,7 @@ function PlayerView({ user, onLogout }) {
   const [bacSaved, setBacSaved] = useState(false)
   const [avatar, setAvatar] = useState(null)
   const [uploading, setUploading] = useState(false)
+  const [confirmDrink, setConfirmDrink] = useState(null)
   const [sessionPhotos, setSessionPhotos] = useState([])
   const load = useCallback(async () => {
     const [pr, dr, lr, sr] = await Promise.all([
@@ -139,7 +140,7 @@ function PlayerView({ user, onLogout }) {
   useEffect(() => { const i = setInterval(() => setNow(Date.now()), 10000); return () => clearInterval(i) }, [])
   async function addDrink(drink) {
     if (!activeSession) return alert('Nessuna serata attiva!')
-    if (!window.confirm(drink.emoji+' '+drink.name+' - Confermi?')) return
+    setConfirmDrink(drink); return
     await fetch('/api/log', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({drink, foodContext:food}) })
     load()
   }
@@ -163,6 +164,20 @@ function PlayerView({ user, onLogout }) {
   const bs = bacStatus(bac)
   const viewLog = selectedSession ? myLog.filter(e=>e.sessionId===selectedSession) : myLog
   return (
+    <>
+    {confirmDrink && (
+      <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.85)',zIndex:999,display:'flex',alignItems:'center',justifyContent:'center',padding:'1rem'}}>
+        <div style={{background:'#1a1a1a',border:'1px solid #F5C518',borderRadius:'16px',padding:'2rem',maxWidth:320,width:'100%',textAlign:'center'}}>
+          <div style={{fontSize:'3rem',marginBottom:'0.5rem'}}>{confirmDrink.emoji}</div>
+          <h2 style={{fontFamily:'Bebas Neue',fontSize:'2rem',color:'#F5C518',marginBottom:'0.25rem'}}>{confirmDrink.name}</h2>
+          <p style={{color:'#888',fontSize:'0.85rem',marginBottom:'1.5rem'}}>{confirmDrink.ml}ml / {confirmDrink.abv}% / {confirmDrink.points} punti</p>
+          <div style={{display:'flex',gap:'0.75rem'}}>
+            <button onClick={()=>setConfirmDrink(null)} style={{flex:1,background:'#2e2e2e',border:'none',borderRadius:'8px',padding:'0.8rem',color:'#888',fontFamily:'Bebas Neue',fontSize:'1.2rem',cursor:'pointer'}}>Annulla</button>
+            <button onClick={async()=>{const d=confirmDrink;setConfirmDrink(null);await fetch('/api/log',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({drink:d,foodContext:food})});load()}} style={{flex:1,background:'#F5C518',border:'none',borderRadius:'8px',padding:'0.8rem',color:'#000',fontFamily:'Bebas Neue',fontSize:'1.2rem',cursor:'pointer'}}>Aggiungi</button>
+          </div>
+        </div>
+      </div>
+    )}
     <main style={{ maxWidth:480, margin:'0 auto', padding:'0 0 5rem' }}>
       <div style={{ padding:'1.5rem 1rem 0.5rem', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
         <div><h1 style={{ fontSize:'2rem', color:'#F5C518', lineHeight:1 }}>DRINKING</h1><h1 style={{ fontSize:'2rem', lineHeight:1 }}>LEADERBOARD</h1></div>
@@ -278,6 +293,23 @@ function PlayerView({ user, onLogout }) {
                     <div style={{ fontFamily:'Bebas Neue', fontSize:'1.8rem', color:i===0?'#F5C518':'#f0f0f0' }}>{pts}</div>
                   </div>
                 </div>
+                {viewingPlayer===player.username && (
+                  <div style={{borderTop:'1px solid #2e2e2e',paddingTop:'0.5rem',marginTop:'0.5rem'}}>
+                    {((selectedSession?(player.sessionLog||[]).filter(e=>e.sessionId===selectedSession):(player.sessionLog||[])).length===0)
+                      ? <p style={{color:'#555',fontSize:'0.75rem',textAlign:'center',padding:'0.5rem'}}>Nessun drink</p>
+                      : (selectedSession?(player.sessionLog||[]).filter(e=>e.sessionId===selectedSession):(player.sessionLog||[])).map((e,ei)=>(
+                        <div key={ei} style={{display:'flex',alignItems:'center',gap:'0.5rem',padding:'0.3rem 0',borderBottom:'1px solid #1a1a1a'}}>
+                          <span style={{fontSize:'1rem'}}>{e.emoji}</span>
+                          <div style={{flex:1}}>
+                            <div style={{color:'#f0f0f0',fontSize:'0.8rem'}}>{e.name}</div>
+                            <div style={{color:'#555',fontSize:'0.65rem'}}>{fmtDate(e.timestamp)} {fmtTime(e.timestamp)}</div>
+                          </div>
+                          <div style={{fontFamily:'Bebas Neue',color:'#F5C518',fontSize:'0.9rem'}}>{e.points}pt</div>
+                        </div>
+                      ))
+                    }
+                  </div>
+                )}
               )
             })}
           </div>
@@ -368,6 +400,7 @@ function PlayerView({ user, onLogout }) {
         )}
       </div>
     </main>
+  </>
   )
 }
 function AdminPanel({ onLogout }) {
