@@ -1,66 +1,62 @@
 import Redis from 'ioredis'
-
+import { DEFAULT_DRINKS } from './drinks.js'
 const redis = new Redis(process.env.REDIS_URL)
-
-export async function getUsers() {
-  const data = await redis.get('users')
-  return data ? JSON.parse(data) : {}
-}
+export async function getUsers() { const d = await redis.get('users'); return d ? JSON.parse(d) : {} }
 export async function getUser(username) { const u = await getUsers(); return u[username] || null }
 export async function createUser(username, hashedPassword, role = 'player') {
   const users = await getUsers()
-  users[username] = { username, password: hashedPassword, role, drinks: [], points: 0, bac_info: null, createdAt: Date.now() }
-  await redis.set('users', JSON.stringify(users))
-  return users[username]
-}
-export async function getUserProfile(username) {
-  const user = await getUser(username)
-  if (!user) return null
-  return { username: user.username, role: user.role, points: user.points || 0, drinks: user.drinks || [], bac_info: user.bac_info || null }
-}
-export async function addDrink(username, drink) {
-  const users = await getUsers()
-  if (!users[username]) return null
-  if (!users[username].drinks) users[username].drinks = []
-  if (!users[username].points) users[username].points = 0
-  const entry = { ...drink, id: Date.now(), timestamp: Date.now() }
-  users[username].drinks.unshift(entry)
-  users[username].points += drink.points
-  await redis.set('users', JSON.stringify(users))
-  return users[username]
-}
-export async function removeDrink(username, drinkId) {
-  const users = await getUsers()
-  if (!users[username]) return null
-  const drink = users[username].drinks.find(d => d.id === drinkId)
-  if (drink) {
-    users[username].drinks = users[username].drinks.filter(d => d.id !== drinkId)
-    users[username].points = Math.max(0, (users[username].points || 0) - drink.points)
-  }
-  await redis.set('users', JSON.stringify(users))
-  return users[username]
+  users[username] = { username, password: hashedPassword, role, bac_info: null, createdAt: Date.now() }
+  await redis.set('users', JSON.stringify(users)); return users[username]
 }
 export async function updateBacInfo(username, bacInfo) {
-  const users = await getUsers()
-  if (!users[username]) return null
-  users[username].bac_info = bacInfo
-  await redis.set('users', JSON.stringify(users))
-  return users[username]
-}
-export async function updateUserDrinks(username, points) {
-  const users = await getUsers()
-  if (!users[username]) return null
-  users[username].points = points
-  await redis.set('users', JSON.stringify(users))
-  return users[username]
+  const users = await getUsers(); if (!users[username]) return null
+  users[username].bac_info = bacInfo; await redis.set('users', JSON.stringify(users)); return users[username]
 }
 export async function deleteUser(username) { const u = await getUsers(); delete u[username]; await redis.set('users', JSON.stringify(u)) }
-export async function resetAllDrinks() {
-  const u = await getUsers()
-  for (const k in u) { u[k].drinks = []; u[k].points = 0 }
-  await redis.set('users', JSON.stringify(u))
+export async function getSessions() { const d = await redis.get('sessions'); return d ? JSON.parse(d) : [] }
+export async function getActiveSession() { const s = await getSessions(); return s.find(x => x.active) || null }
+export async function createSession(name) {
+  const sessions = await getSessions()
+  sessions.forEach(s => s.active = false)
+  const session = { id: Date.now(), name, active: true, createdAt: Date.now(), closedAt: null }
+  sessions.push(session); await redis.set('sessions', JSON.stringify(sessions)); return session
 }
-export async function getLeaderboard() {
-  const u = await getUsers()
-  return Object.values(u).filter(p => p.role !== 'admin').sort((a, b) => (b.points || 0) - (a.points || 0))
+export async function closeSession(sessionId) {
+  const sessions = await getSessions()
+  const s = sessions.find(x => x.id === sessionId)
+  if (s) { s.active = false; s.closedAt = Date.now() }
+  await redis.set('sessions', JSON.stringify(sessions))
+}
+export async function getDrinkLog() { const d = await redis.get('drinklog'); return d ? JSON.parse(d) : [] }
+export async function addDrinkEntry(username, drink, sessionId, foodContext = null) {
+  const log = await getDrinkLog()
+  const entry = { id: Date.now(), username, sessionId, drinkId: drink.id, name: drink.name, emoji: drink.emoji, points: drink.points, ml: drink.ml, abv: drink.abv, foodContext, timestamp: Date.now() }
+  log.push(entry); await redis.set('drinklog', JSON.stringify(log)); return entry
+}
+export async function removeDrinkEntry(entryId, username) {
+  const log = await getDrinkLog()
+  await redis.set('drinklog', JSON.stringify(log.filter(e => !(e.id === entryId && e.username === username))))
+}
+export async function getDrinksCatalog() {
+  const d = await redis.get('drinks_catalog')
+  if (!d) { await redis.set('drinks_catalog', JSON.stringify(DEFAULT_DRINKS)); return DEFAULT_DRINKS }
+  return JSON.parse(d)
+}
+export async function addDrinkToCatalog(drink) {
+  const catalog = await getDrinksCatalog()
+  const newDrink = { ...drink, id: 'custom_' + Date.now() }
+  catalog.push(newDrink); await redis.set('drinks_catalog', JSON.stringify(catalog)); return newDrink
+}
+export async function removeDrinkFromCatalog(drinkId) {
+  const catalog = await getDrinksCatalog()
+  await redis.set('drinks_catalog', JSON.stringify(catalog.filter(d => d.id !== drinkId)))
+}
+export async function getLeaderboard(sessionId = null) {
+  const users = await getUsers(); const log = await getDrinkLog()
+  const players = Object.values(users).filter(u => u.role !== 'admin')
+  return players.map(u => {
+    const userLog = sessionId ? log.filter(e => e.username === u.username && e.sessionId === sessionId) : log.filter(e => e.username === u.username)
+    const points = userLog.reduce((sum, e) => sum + e.points, 0)
+    return { username: u.username, points, drinks: userLog.length, bac_info: u.bac_info, sessionLog: log.filter(e => e.username === u.username) }
+  }).sort((a, b) => b.points - a.points)
 }
