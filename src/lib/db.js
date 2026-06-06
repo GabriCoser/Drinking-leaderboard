@@ -1,4 +1,10 @@
-import { kv } from '@vercel/kv'
+import { createClient } from '@vercel/kv'
+
+const kv = createClient({
+  url: process.env.KV_REST_API_URL || process.env.STORAGE_REST_API_URL,
+  token: process.env.KV_REST_API_TOKEN || process.env.STORAGE_REST_API_TOKEN,
+})
+
 export async function getUsers() { return (await kv.get('users')) || {} }
 export async function getUser(username) { const u = await getUsers(); return u[username] || null }
 export async function createUser(username, hashedPassword, role = 'player') {
