@@ -116,6 +116,8 @@ function PlayerView({ user, onLogout }) {
   const [bacForm, setBacForm] = useState({ weight:'', height:'', age:'', sex:'M' })
   const [bacSaved, setBacSaved] = useState(false)
   const [confirmDrink, setConfirmDrink] = useState(null)
+  const [viewingPlayer, setViewingPlayer] = useState(null)
+  const [confirmDrink, setConfirmDrink] = useState(null)
   const [avatar, setAvatar] = useState(null)
   const [uploading, setUploading] = useState(false)
   const [sessionPhotos, setSessionPhotos] = useState([])
@@ -293,6 +295,20 @@ function PlayerView({ user, onLogout }) {
                     <div style={{ fontFamily:'Bebas Neue', fontSize:'1.8rem', color:i===0?'#F5C518':'#f0f0f0' }}>{pts}</div>
                   </div>
                 </div>
+                {viewingPlayer===player.username && (
+                  <div style={{marginTop:'0.5rem',borderTop:'1px solid #2e2e2e',paddingTop:'0.5rem'}}>
+                    {((selectedSession?(player.sessionLog||[]).filter(e=>e.sessionId===selectedSession):(player.sessionLog||[])).length===0)
+                      ? <p style={{color:'#555',fontSize:'0.75rem',textAlign:'center',padding:'0.5rem'}}>Nessun drink</p>
+                      : (selectedSession?(player.sessionLog||[]).filter(e=>e.sessionId===selectedSession):(player.sessionLog||[])).map((e,ei)=>(
+                        <div key={ei} style={{display:'flex',alignItems:'center',gap:'0.5rem',padding:'0.3rem 0',borderBottom:'1px solid #1a1a1a'}}>
+                          <span>{e.emoji}</span>
+                          <div style={{flex:1}}><div style={{color:'#f0f0f0',fontSize:'0.8rem'}}>{e.name}</div><div style={{color:'#555',fontSize:'0.65rem'}}>{fmtDate(e.timestamp)} {fmtTime(e.timestamp)}</div></div>
+                          <div style={{fontFamily:'Bebas Neue',color:'#F5C518',fontSize:'0.9rem'}}>{e.points}pt</div>
+                        </div>
+                      ))
+                    }
+                  </div>
+                )}
               )
             })}
           </div>
@@ -368,6 +384,7 @@ function PlayerView({ user, onLogout }) {
         )}
       </div>
     </main>
+  </>
   </>
   )
 }
