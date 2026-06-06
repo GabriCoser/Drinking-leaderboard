@@ -29,36 +29,40 @@ function bacStatus(b) {
   return { label: 'Molto alterato', color: '#9b0000' }
 }
 async function compressAndUpload(file, type, sessionId = null) {
-  // Comprimi nel browser con canvas per stare sotto i 4.5MB di Vercel
-  const compressed = await new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = ev => {
-      const img = new Image()
-      img.onload = () => {
-        const canvas = document.createElement('canvas')
-        let w = img.width, h = img.height
-        const max = 1000
-        if (w > max || h > max) {
-          if (w > h) { h = Math.round(h*max/w); w = max }
-          else { w = Math.round(w*max/h); h = max }
+  try {
+    const dataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = ev => {
+        const img = new Image()
+        img.onload = () => {
+          const canvas = document.createElement('canvas')
+          let w = img.width, h = img.height
+          const max = 1000
+          if (w > max || h > max) {
+            if (w > h) { h = Math.round(h*max/w); w = max }
+            else { w = Math.round(w*max/h); h = max }
+          }
+          canvas.width = w; canvas.height = h
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+          resolve(canvas.toDataURL('image/jpeg', 0.7))
         }
-        canvas.width = w; canvas.height = h
-        const ctx = canvas.getContext('2d')
-        ctx.drawImage(img, 0, 0, w, h)
-        canvas.toBlob(b => resolve(b), 'image/jpeg', 0.7)
+        img.onerror = reject
+        img.src = ev.target.result
       }
-      img.onerror = reject
-      img.src = ev.target.result
-    }
-    reader.onerror = reject
-    reader.readAsDataURL(file)
-  })
-  const formData = new FormData()
-  formData.append('file', compressed, 'photo.jpg')
-  formData.append('type', type)
-  if (sessionId) formData.append('sessionId', String(sessionId))
-  const res = await fetch('/api/upload', { method: 'POST', body: formData })
-  return await res.json()
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+    const res = await fetch('/api/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: dataUrl, type, sessionId: sessionId ? String(sessionId) : null })
+    })
+    return await res.json()
+  } catch (e) {
+    console.error('Upload error:', e)
+    alert('Errore caricamento foto: ' + e.message)
+    return { error: e.message }
+  }
 }
 function fmtTime(ts) { return new Date(ts).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}) }
 function fmtDate(ts) { return new Date(ts).toLocaleDateString('it-IT',{day:'2-digit',month:'short'}) }
