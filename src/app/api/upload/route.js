@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { put } from '@vercel/blob'
 import { getSession } from '@/lib/auth'
-import { getUsers, updateBacInfo } from '@/lib/db'
+import sharp from 'sharp'
 import Redis from 'ioredis'
 
 const redis = new Redis(process.env.REDIS_URL)
@@ -15,8 +15,10 @@ export async function POST(request) {
     const type = formData.get('type')
     const sessionId = formData.get('sessionId')
     if (!file) return NextResponse.json({ error: 'File mancante' }, { status: 400 })
+    const buffer = Buffer.from(await file.arrayBuffer())
+    const compressed = await sharp(buffer).resize(800, 800, { fit: 'inside', withoutEnlargement: true }).jpeg({ quality: 75 }).toBuffer()
     const filename = `${type}/${session.username}_${Date.now()}.jpg`
-    const blob = await put(filename, file, { access: 'public' })
+    const blob = await put(filename, compressed, { access: 'public', contentType: 'image/jpeg' })
     if (type === 'avatar') {
       const users = await redis.get('users')
       const parsed = users ? JSON.parse(users) : {}
@@ -26,7 +28,7 @@ export async function POST(request) {
       }
     }
     if (type === 'session' && sessionId) {
-      const photos = await redis.get('session_photos') 
+      const photos = await redis.get('session_photos')
       const parsed = photos ? JSON.parse(photos) : {}
       if (!parsed[sessionId]) parsed[sessionId] = []
       parsed[sessionId].push({ url: blob.url, username: session.username, timestamp: Date.now() })
