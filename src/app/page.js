@@ -390,7 +390,6 @@ function PlayerView({ user, onLogout }) {
       </div>
     </main>
   </>
-  </>
   )
 }
 function AdminPanel({ onLogout }) {
