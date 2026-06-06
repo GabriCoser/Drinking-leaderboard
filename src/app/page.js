@@ -365,7 +365,7 @@ function AdminPanel({ onLogout }) {
             <div key={sess.id} style={s.card(sess.active)}>
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
                 <div><div style={{ fontFamily:'Bebas Neue', fontSize:'1.2rem', color:sess.active?'#F5C518':'#f0f0f0' }}>{sess.name}</div>
-                <div style={{ color:'#888', fontSize:'0.75rem' }}>{fmtDate(sess.createdAt)} {fmtTime(sess.createdAt)}</div></div>
+                <div style={{ color:'#888', fontSize:'0.75rem' }}>Aperta: {fmtDate(sess.createdAt)} {fmtTime(sess.createdAt)}{sess.closedAt ? ' · Chiusa: '+fmtDate(sess.closedAt)+' '+fmtTime(sess.closedAt) : ''}</div><div style={{marginTop:'0.25rem'}}><span style={{background:sess.active?'#3ce08a22':'#2e2e2e',color:sess.active?'#3ce08a':'#888',fontSize:'0.7rem',padding:'0.15rem 0.5rem',borderRadius:'4px'}}>{sess.active?'● Aperta':'✕ Chiusa'}</span></div></div>
                 {sess.active?<button onClick={()=>closeSession(sess.id)} style={s.btn('#2e2e2e','#e03c3c',{fontSize:'0.8rem'})}>Chiudi</button>:<button onClick={()=>deleteSession(sess.id)} style={s.btn('#2e2e2e','#e03c3c',{fontSize:'0.8rem',opacity:0.6})}>Elimina</button>}
               </div>
             </div>
