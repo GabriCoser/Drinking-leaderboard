@@ -139,6 +139,7 @@ function PlayerView({ user, onLogout }) {
   useEffect(() => { const i = setInterval(() => setNow(Date.now()), 10000); return () => clearInterval(i) }, [])
   async function addDrink(drink) {
     if (!activeSession) return alert('Nessuna serata attiva!')
+    if (!window.confirm(drink.emoji+' '+drink.name+' - Confermi?')) return
     await fetch('/api/log', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({drink, foodContext:food}) })
     load()
   }
