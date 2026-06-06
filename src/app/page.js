@@ -8,19 +8,27 @@ const s = {
   card: (gold = false) => ({ background: gold ? 'linear-gradient(135deg, #1e1a00, #2a2200)' : '#1a1a1a', border: `1px solid ${gold ? '#c9a014' : '#2e2e2e'}`, borderRadius: '14px', padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', gap: '1rem' }),
   label: { color: '#888', fontSize: '0.8rem', marginBottom: '0.3rem', display: 'block' },
 }
-function LoginScreen({ onLogin }) {
+function AuthScreen({ onLogin }) {
+  const [mode, setMode] = useState('login')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  async function handleLogin() {
+  async function handle() {
     if (!username || !password) return setError('Compila tutti i campi')
     setLoading(true); setError('')
     try {
-      const res = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) })
+      const url = mode === 'login' ? '/api/auth/login' : '/api/auth/register'
+      const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) })
       const data = await res.json()
       if (!res.ok) return setError(data.error || 'Errore')
-      onLogin(data)
+      if (mode === 'register') {
+        const loginRes = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) })
+        const loginData = await loginRes.json()
+        if (loginRes.ok) onLogin(loginData)
+      } else {
+        onLogin(data)
+      }
     } catch { setError('Errore di connessione') } finally { setLoading(false) }
   }
   return (
@@ -30,11 +38,18 @@ function LoginScreen({ onLogin }) {
         <h1 style={{ fontSize: '3.5rem', color: '#F5C518', lineHeight: 1 }}>DRINKING</h1>
         <h1 style={{ fontSize: '3.5rem', lineHeight: 1 }}>LEADERBOARD</h1>
       </div>
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
+        {[['login', 'Accedi'], ['register', 'Registrati']].map(([key, label]) => (
+          <button key={key} onClick={() => { setMode(key); setError('') }} style={s.btn(mode === key ? '#F5C518' : '#1a1a1a', mode === key ? '#000' : '#888', { flex: 1, border: '1px solid #2e2e2e' })}>{label}</button>
+        ))}
+      </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        <div><label style={s.label}>Username</label><input style={s.input} value={username} placeholder="es. mario" onChange={e => setUsername(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleLogin()} /></div>
-        <div><label style={s.label}>Password</label><input style={s.input} type="password" value={password} placeholder="..." onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleLogin()} /></div>
+        <div><label style={s.label}>Username</label><input style={s.input} value={username} placeholder="es. mario" onChange={e => setUsername(e.target.value)} onKeyDown={e => e.key === 'Enter' && handle()} /></div>
+        <div><label style={s.label}>Password</label><input style={s.input} type="password" value={password} placeholder="••••••" onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && handle()} /></div>
         {error && <p style={{ color: '#e03c3c', fontSize: '0.85rem', textAlign: 'center' }}>{error}</p>}
-        <button onClick={handleLogin} disabled={loading} style={s.btn('#F5C518', '#000', { width: '100%', padding: '0.8rem', fontSize: '1.3rem', opacity: loading ? 0.6 : 1 })}>{loading ? 'Accesso...' : 'Entra'}</button>
+        <button onClick={handle} disabled={loading} style={s.btn('#F5C518', '#000', { width: '100%', padding: '0.8rem', fontSize: '1.3rem', opacity: loading ? 0.6 : 1 })}>
+          {loading ? '...' : mode === 'login' ? 'Entra' : 'Crea Account'}
+        </button>
       </div>
     </main>
   )
@@ -213,7 +228,7 @@ export default function Home() {
   function handleLogout() { setUser(null); setState('login') }
   if (state === 'loading') return <main style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}><div style={{ textAlign: 'center' }}><div style={{ fontSize: '3rem' }}>🍺</div><p style={{ color: '#888' }}>Caricamento...</p></div></main>
   if (state === 'setup') return <SetupScreen onDone={() => setState('login')} />
-  if (state === 'login') return <LoginScreen onLogin={handleLogin} />
+  if (state === 'login') return <AuthScreen onLogin={handleLogin} />
   if (state === 'admin') return <AdminPanel onLogout={handleLogout} />
   if (state === 'player') return <PlayerView user={user} onLogout={handleLogout} />
 }
