@@ -284,36 +284,41 @@ function PlayerView({ user, onLogout }) {
               const dks = selectedSession ? (player.sessionLog||[]).filter(e=>e.sessionId===selectedSession).length : player.drinks
               const isMe = player.username===user.username
               const pBac = player.bac_info ? calcBAC(selectedSession?(player.sessionLog||[]).filter(e=>e.sessionId===selectedSession):(player.sessionLog||[]),player.bac_info,now) : null
+              const playerLog = selectedSession ? (player.sessionLog||[]).filter(e=>e.sessionId===selectedSession) : (player.sessionLog||[])
+              const isOpen = viewingPlayer===player.username
               return (
                 <div key={player.username} style={s.card(isMe,{border:isMe?'1px solid #F5C518':'1px solid #2e2e2e'})}>
-                  <div style={{ display:'flex', alignItems:'center', gap:'1rem' }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:'1rem' }} onClick={()=>setViewingPlayer(isOpen?null:player.username)}>
                     <span style={{ width:36, height:36, background:i<3?'#F5C518':'#2e2e2e', borderRadius:'8px', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Bebas Neue', fontSize:'1rem', color:i<3?'#000':'#888', flexShrink:0 }}>{i<3?['👑','2','3'][i]:i+1}</span>
                     <div style={{ flex:1 }}>
-                      <div onClick={()=>setViewingPlayer(viewingPlayer===player.username?null:player.username)} style={{ fontFamily:'Bebas Neue', fontSize:'1.3rem', color:isMe?'#F5C518':'#f0f0f0', cursor:'pointer' }}>{player.username}{isMe&&<span style={{ background:'#F5C518', color:'#000', fontSize:'0.6rem', padding:'0.1rem 0.3rem', borderRadius:'3px', marginLeft:'0.5rem' }}>TU</span>} <span style={{fontSize:'0.7rem', color:'#555'}}>{viewingPlayer===player.username?'▲':'▼'}</span></div>
-                      <div style={{ color:'#888', fontSize:'0.75rem' }} onClick={()=>setViewingPlayer(viewingPlayer===player.username?null:player.username)}>{dks} drink{pBac!==null?` / BAC ${pBac.toFixed(3)}%`:''}</div>
+                      <div style={{ fontFamily:'Bebas Neue', fontSize:'1.3rem', color:isMe?'#F5C518':'#f0f0f0', cursor:'pointer' }}>{player.username} <span style={{fontSize:'0.7rem',color:'#555'}}>{isOpen?'▲':'▼'}</span>{isMe&&<span style={{ background:'#F5C518', color:'#000', fontSize:'0.6rem', padding:'0.1rem 0.3rem', borderRadius:'3px', marginLeft:'0.5rem' }}>TU</span>}</div>
+                      <div style={{ color:'#888', fontSize:'0.75rem' }}>{dks} drink{pBac!==null?' / BAC '+pBac.toFixed(3)+'%':''}</div>
                     </div>
                     <div style={{ fontFamily:'Bebas Neue', fontSize:'1.8rem', color:i===0?'#F5C518':'#f0f0f0' }}>{pts}</div>
                   </div>
+                  {isOpen && (
+                    <div style={{marginTop:'0.75rem',borderTop:'1px solid #2e2e2e',paddingTop:'0.75rem'}}>
+                      {playerLog.length===0
+                        ? <p style={{color:'#555',fontSize:'0.8rem',textAlign:'center'}}>Nessun drink</p>
+                        : playerLog.map((e,ei)=>(
+                          <div key={ei} style={{display:'flex',alignItems:'center',gap:'0.5rem',padding:'0.3rem 0',borderBottom:'1px solid #1a1a1a'}}>
+                            <span style={{fontSize:'1rem'}}>{e.emoji}</span>
+                            <div style={{flex:1}}>
+                              <div style={{color:'#f0f0f0',fontSize:'0.8rem'}}>{e.name}</div>
+                              <div style={{color:'#555',fontSize:'0.65rem'}}>{fmtDate(e.timestamp)} {fmtTime(e.timestamp)}</div>
+                            </div>
+                            <div style={{fontFamily:'Bebas Neue',color:'#F5C518',fontSize:'0.9rem'}}>{e.points}pt</div>
+                          </div>
+                        ))
+                      }
+                    </div>
+                  )}
                 </div>
-                {viewingPlayer===player.username && (
-                  <div style={{marginTop:'0.5rem',borderTop:'1px solid #2e2e2e',paddingTop:'0.5rem'}}>
-                    {((selectedSession?(player.sessionLog||[]).filter(e=>e.sessionId===selectedSession):(player.sessionLog||[])).length===0)
-                      ? <p style={{color:'#555',fontSize:'0.75rem',textAlign:'center',padding:'0.5rem'}}>Nessun drink</p>
-                      : (selectedSession?(player.sessionLog||[]).filter(e=>e.sessionId===selectedSession):(player.sessionLog||[])).map((e,ei)=>(
-                        <div key={ei} style={{display:'flex',alignItems:'center',gap:'0.5rem',padding:'0.3rem 0',borderBottom:'1px solid #1a1a1a'}}>
-                          <span>{e.emoji}</span>
-                          <div style={{flex:1}}><div style={{color:'#f0f0f0',fontSize:'0.8rem'}}>{e.name}</div><div style={{color:'#555',fontSize:'0.65rem'}}>{fmtDate(e.timestamp)} {fmtTime(e.timestamp)}</div></div>
-                          <div style={{fontFamily:'Bebas Neue',color:'#F5C518',fontSize:'0.9rem'}}>{e.points}pt</div>
-                        </div>
-                      ))
-                    }
-                  </div>
-                )}
               )
             })}
           </div>
         )}
-        {tab==='photos' && (
+                {tab==='photos' && (
           <div style={{ display:'flex', flexDirection:'column', gap:'1rem' }}>
             {activeSession && (
               <div style={s.card()}>
