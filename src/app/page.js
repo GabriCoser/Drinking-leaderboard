@@ -384,6 +384,7 @@ function PlayerView({ user, onLogout }) {
               <label style={{ cursor:'pointer', color:'#F5C518', fontSize:'0.85rem', background:'#2e2e2e', padding:'0.4rem 1rem', borderRadius:'8px' }}>
                 {uploading ? 'Caricamento...' : 'Cambia foto'}
                 <input type='file' accept='image/*' style={{ display:'none' }} onChange={async e => {
+                  const file = e.target.files[0]; if (!file) return
                   setUploading(true)
                   const data = await compressAndUpload(file, 'avatar')
                   if (data.url) setAvatar(data.url)
