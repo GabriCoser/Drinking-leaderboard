@@ -116,8 +116,6 @@ function PlayerView({ user, onLogout }) {
   const [bacForm, setBacForm] = useState({ weight:'', height:'', age:'', sex:'M' })
   const [bacSaved, setBacSaved] = useState(false)
   const [confirmDrink, setConfirmDrink] = useState(null)
-  const [viewingPlayer, setViewingPlayer] = useState(null)
-  const [confirmDrink, setConfirmDrink] = useState(null)
   const [avatar, setAvatar] = useState(null)
   const [uploading, setUploading] = useState(false)
   const [sessionPhotos, setSessionPhotos] = useState([])
