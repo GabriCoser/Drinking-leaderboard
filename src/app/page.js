@@ -504,9 +504,9 @@ function AdminPanel({ onLogout }) {
       {tab==='stats'&&(
         <div style={{display:'flex',flexDirection:'column',gap:'1rem'}}>
           {activeSession ? (() => {
-            const sessionLog = players.flatMap(p=>(p.sessionLog||[]).filter(e=>e.sessionId===activeSession.id))
+            const sessionLog = players.flatMap(p=>(p.sessionLog||[]).filter(e=>String(e.sessionId)===String(activeSession.id)))
             const totalDrinks = sessionLog.length
-            const activePlayers = players.filter(p=>(p.sessionLog||[]).some(e=>e.sessionId===activeSession.id))
+            const activePlayers = players.filter(p=>(p.sessionLog||[]).some(e=>String(e.sessionId)===String(activeSession.id)))
             const avg = activePlayers.length ? (totalDrinks/activePlayers.length).toFixed(1) : 0
             const drinkCount = {}
             sessionLog.forEach(e=>{drinkCount[e.name]=(drinkCount[e.name]||0)+1})
@@ -539,8 +539,8 @@ function AdminPanel({ onLogout }) {
               <div style={s.card()}>
                 <h3 style={{fontFamily:'Bebas Neue',fontSize:'1.2rem',color:'#888',marginBottom:'0.75rem'}}>CLASSIFICA SERATA</h3>
                 {players.filter(p=>p.role!=='admin').map((p,i)=>{
-                  const pts=(p.sessionLog||[]).filter(e=>e.sessionId===activeSession.id).reduce((s,e)=>s+e.points,0)
-                  const dks=(p.sessionLog||[]).filter(e=>e.sessionId===activeSession.id).length
+                  const pts=(p.sessionLog||[]).filter(e=>String(e.sessionId)===String(activeSession.id)).reduce((s,e)=>s+e.points,0)
+                  const dks=(p.sessionLog||[]).filter(e=>String(e.sessionId)===String(activeSession.id)).length
                   if(dks===0) return null
                   return <div key={p.username} style={{display:'flex',alignItems:'center',gap:'1rem',padding:'0.4rem 0',borderBottom:'1px solid #1a1a1a'}}>
                     <span style={{fontFamily:'Bebas Neue',color:'#555',width:20}}>{i+1}</span>
