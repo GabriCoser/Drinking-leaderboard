@@ -17,7 +17,7 @@ export async function getSessions() { const d = await redis.get('sessions'); ret
 export async function getActiveSession() { const s = await getSessions(); return s.find(x => x.active) || null }
 export async function createSession(name) {
   const sessions = await getSessions()
-  sessions.forEach(s => s.active = false)
+  sessions.forEach(s => { if(s.active) { s.active = false; s.closedAt = Date.now(); } })
   const session = { id: Date.now(), name, active: true, createdAt: Date.now(), closedAt: null }
   sessions.push(session); await redis.set('sessions', JSON.stringify(sessions)); return session
 }
