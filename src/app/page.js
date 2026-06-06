@@ -1,4 +1,5 @@
 'use client'
+import imageCompression from 'browser-image-compression'
 import { useState, useEffect, useCallback } from 'react'
 const MEDAL = ['🥇', '🥈', '🥉']
 const s = {
@@ -26,6 +27,16 @@ function bacStatus(b) {
   if (b < 0.08) return { label: 'Moderato', color: '#ff9500' }
   if (b < 0.15) return { label: 'Alterato', color: '#e03c3c' }
   return { label: 'Molto alterato', color: '#9b0000' }
+}
+async function compressAndUpload(file, type, sessionId = null) {
+  const options = { maxSizeMB: 0.2, maxWidthOrHeight: 800, useWebWorker: true }
+  const compressed = await imageCompression(file, options)
+  const formData = new FormData()
+  formData.append('file', compressed)
+  formData.append('type', type)
+  if (sessionId) formData.append('sessionId', String(sessionId))
+  const res = await fetch('/api/upload', { method: 'POST', body: formData })
+  return await res.json()
 }
 function fmtTime(ts) { return new Date(ts).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}) }
 function fmtDate(ts) { return new Date(ts).toLocaleDateString('it-IT',{day:'2-digit',month:'short'}) }
@@ -105,6 +116,9 @@ function PlayerView({ user, onLogout }) {
   const [selectedSession, setSelectedSession] = useState(null)
   const [bacForm, setBacForm] = useState({ weight:'', height:'', age:'', sex:'M' })
   const [bacSaved, setBacSaved] = useState(false)
+  const [avatar, setAvatar] = useState(null)
+  const [uploading, setUploading] = useState(false)
+  const [sessionPhotos, setSessionPhotos] = useState([])
   const load = useCallback(async () => {
     const [pr, dr, lr, sr] = await Promise.all([
       fetch('/api/players').then(r=>r.json()),
@@ -117,6 +131,10 @@ function PlayerView({ user, onLogout }) {
     setSessions(sr.sessions||[])
     const me = pr.players?.find(p=>p.username===user.username)
     if (me?.bac_info) { setBacInfo(me.bac_info); setBacForm(me.bac_info) }
+    if (me?.avatar) setAvatar(me.avatar)
+    if (pr.activeSession) {
+      fetch('/api/photos?sessionId='+pr.activeSession.id).then(r=>r.json()).then(d=>setSessionPhotos(d.photos||[]))
+    }
   }, [user.username])
   useEffect(() => { load(); const i = setInterval(load, 15000); return () => clearInterval(i) }, [load])
   useEffect(() => { const i = setInterval(() => setNow(Date.now()), 10000); return () => clearInterval(i) }, [])
@@ -155,7 +173,7 @@ function PlayerView({ user, onLogout }) {
         : <div style={{ margin:'0 1rem 1rem', background:'#1a1a1a', border:'1px solid #2e2e2e', borderRadius:'8px', padding:'0.5rem 1rem' }}><span style={{ color:'#888', fontSize:'0.85rem' }}>Nessuna serata attiva</span></div>
       }
       <div style={{ display:'flex', gap:'0.4rem', padding:'0 1rem 1rem', overflowX:'auto' }}>
-        {[['home','🏠'],['drinks','🍺'],['log','📋'],['board','🏆'],['profile','👤']].map(([k,l]) => (
+        {[['home','🏠'],['drinks','🍺'],['log','📋'],['board','🏆'],['photos','📸'],['profile','👤']].map(([k,l]) => (
           <button key={k} onClick={()=>setTab(k)} style={s.btn(tab===k?'#F5C518':'#1a1a1a',tab===k?'#000':'#888',{flex:1,fontSize:'1.2rem',padding:'0.5rem',border:'1px solid #2e2e2e',minWidth:50})}>{l}</button>
         ))}
       </div>
@@ -264,10 +282,60 @@ function PlayerView({ user, onLogout }) {
             })}
           </div>
         )}
+        {tab==='photos' && (
+          <div style={{ display:'flex', flexDirection:'column', gap:'1rem' }}>
+            {activeSession && (
+              <div style={s.card()}>
+                <h3 style={{ fontFamily:'Bebas Neue', fontSize:'1.3rem', color:'#F5C518', marginBottom:'0.75rem' }}>AGGIUNGI FOTO</h3>
+                <label style={{ cursor:'pointer', display:'block', textAlign:'center', background:'#2e2e2e', border:'2px dashed #888', borderRadius:'12px', padding:'1.5rem', color:'#888', fontSize:'0.9rem' }}>
+                  {uploading ? '📤 Caricamento...' : '📸 Tocca per aggiungere foto alla serata'}
+                  <input type='file' accept='image/*' style={{ display:'none' }} onChange={async e => {
+                    setUploading(true)
+                    await compressAndUpload(file, 'session', activeSession.id)
+                    const d = await fetch('/api/photos?sessionId='+activeSession.id).then(r=>r.json())
+                    setSessionPhotos(d.photos||[])
+                    setUploading(false)
+                  }} />
+                </label>
+              </div>
+            )}
+            <h3 style={{ fontFamily:'Bebas Neue', fontSize:'1.3rem', color:'#888' }}>FOTO SERATA</h3>
+            {sessionPhotos.length === 0 && <p style={{ color:'#888', textAlign:'center', padding:'2rem' }}>Nessuna foto ancora</p>}
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.5rem' }}>
+              {sessionPhotos.map((photo, i) => (
+                <div key={i} style={{ position:'relative', borderRadius:'8px', overflow:'hidden', aspectRatio:'1' }}>
+                  <img src={photo.url} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                  <div style={{ position:'absolute', bottom:0, left:0, right:0, background:'rgba(0,0,0,0.6)', padding:'0.25rem 0.5rem', fontSize:'0.65rem', color:'#f0f0f0' }}>{photo.username}</div>
+                  {(photo.username === user.username) && (
+                    <button onClick={async () => {
+                      await fetch('/api/photos', { method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({url:photo.url, sessionId:activeSession?.id}) })
+                      const d = await fetch('/api/photos?sessionId='+activeSession?.id).then(r=>r.json())
+                      setSessionPhotos(d.photos||[])
+                    }} style={{ position:'absolute', top:'0.25rem', right:'0.25rem', background:'rgba(0,0,0,0.7)', border:'none', borderRadius:'50%', width:24, height:24, color:'#e03c3c', cursor:'pointer', fontSize:'0.75rem' }}>✕</button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         {tab==='profile' && (
           <div style={{ display:'flex', flexDirection:'column', gap:'1rem' }}>
             <div style={s.card()}>
-              <h2 style={{ fontFamily:'Bebas Neue', fontSize:'1.5rem', color:'#F5C518', marginBottom:'1rem' }}>DATI BAC</h2>
+              <div style={{ textAlign:'center', marginBottom:'1.5rem' }}>
+              <div style={{ width:80, height:80, borderRadius:'50%', background:'#2e2e2e', margin:'0 auto 0.75rem', overflow:'hidden', border:'2px solid #F5C518' }}>
+                {avatar ? <img src={avatar} style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'2rem' }}>👤</div>}
+              </div>
+              <label style={{ cursor:'pointer', color:'#F5C518', fontSize:'0.85rem', background:'#2e2e2e', padding:'0.4rem 1rem', borderRadius:'8px' }}>
+                {uploading ? 'Caricamento...' : 'Cambia foto'}
+                <input type='file' accept='image/*' style={{ display:'none' }} onChange={async e => {
+                  setUploading(true)
+                  const data = await compressAndUpload(file, 'avatar')
+                  if (data.url) setAvatar(data.url)
+                  setUploading(false)
+                }} />
+              </label>
+            </div>
+            <h2 style={{ fontFamily:'Bebas Neue', fontSize:'1.5rem', color:'#F5C518', marginBottom:'1rem' }}>DATI BAC</h2>
               <div style={{ display:'flex', flexDirection:'column', gap:'0.75rem' }}>
                 <div style={{ display:'flex', gap:'0.5rem' }}>
                   {[['M','Maschio'],['F','Femmina']].map(([v,l]) => (
