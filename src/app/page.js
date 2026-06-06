@@ -30,11 +30,15 @@ function bacStatus(b) {
 }
 async function compressAndUpload(file, type, sessionId = null) {
   try {
+    if (!file) { alert('Nessun file selezionato'); return { error: 'no file' } }
+    alert('1. File: ' + file.name + ' (' + Math.round(file.size/1024) + 'KB)')
     const dataUrl = await new Promise((resolve, reject) => {
       const reader = new FileReader()
+      const timeout = setTimeout(() => reject(new Error('Timeout lettura file')), 15000)
       reader.onload = ev => {
         const img = new Image()
         img.onload = () => {
+          clearTimeout(timeout)
           const canvas = document.createElement('canvas')
           let w = img.width, h = img.height
           const max = 1000
@@ -46,21 +50,23 @@ async function compressAndUpload(file, type, sessionId = null) {
           canvas.getContext('2d').drawImage(img, 0, 0, w, h)
           resolve(canvas.toDataURL('image/jpeg', 0.7))
         }
-        img.onerror = reject
+        img.onerror = () => { clearTimeout(timeout); reject(new Error('Immagine non valida (forse HEIC?)')) }
         img.src = ev.target.result
       }
-      reader.onerror = reject
+      reader.onerror = () => { clearTimeout(timeout); reject(new Error('Errore lettura file')) }
       reader.readAsDataURL(file)
     })
+    alert('2. Compressione OK, invio...')
     const res = await fetch('/api/upload', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ image: dataUrl, type, sessionId: sessionId ? String(sessionId) : null })
     })
-    return await res.json()
+    const data = await res.json()
+    alert('3. Risposta: ' + JSON.stringify(data).substring(0, 100))
+    return data
   } catch (e) {
-    console.error('Upload error:', e)
-    alert('Errore caricamento foto: ' + e.message)
+    alert('ERRORE: ' + e.message)
     return { error: e.message }
   }
 }
