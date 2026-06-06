@@ -1,5 +1,5 @@
 'use client'
-import imageCompression from 'browser-image-compression'
+
 import { useState, useEffect, useCallback } from 'react'
 const MEDAL = ['🥇', '🥈', '🥉']
 const s = {
@@ -29,8 +29,21 @@ function bacStatus(b) {
   return { label: 'Molto alterato', color: '#9b0000' }
 }
 async function compressAndUpload(file, type, sessionId = null) {
-  const options = { maxSizeMB: 0.2, maxWidthOrHeight: 800, useWebWorker: true }
-  const compressed = await imageCompression(file, options)
+  const compressed = await new Promise((resolve) => {
+    const img = new Image()
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      const max = 800
+      let w = img.width, h = img.height
+      if (w > max || h > max) {
+        if (w > h) { h = (h/w)*max; w = max } else { w = (w/h)*max; h = max }
+      }
+      canvas.width = w; canvas.height = h
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+      canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.75)
+    }
+    img.src = URL.createObjectURL(file)
+  })
   const formData = new FormData()
   formData.append('file', compressed)
   formData.append('type', type)
