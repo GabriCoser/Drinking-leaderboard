@@ -1,6 +1,8 @@
 import Redis from 'ioredis'
 import { DEFAULT_DRINKS } from './drinks.js'
-const redis = new Redis(process.env.REDIS_URL)
+if (!process.env.REDIS_URL) throw new Error('REDIS_URL environment variable is not set')
+const redis = new Redis(process.env.REDIS_URL, { maxRetriesPerRequest: 3, connectTimeout: 5000, enableOfflineQueue: false })
+redis.on('error', (err) => console.error('[Redis] connection error:', err.message))
 export async function getUsers() { const d = await redis.get('users'); return d ? JSON.parse(d) : {} }
 export async function getUser(username) { const u = await getUsers(); return u[username] || null }
 export async function createUser(username, hashedPassword, role = 'player') {
