@@ -307,7 +307,7 @@ function PlayerView({ user, onLogout }) {
   const canDrink = !!activeSession && joined
   const boardSessionId = boardSel===undefined ? (activeSession?.id ?? null) : (boardSel==='' ? null : parseInt(boardSel))
   const boardPlayers = (() => {
-    if (!boardSessionId) return players
+    if (!boardSessionId) return players.filter(p => p.drinks > 0 || p.username === user.username)
     const sess = sessions.find(ss=>ss.id===boardSessionId)
     const inSess = p => sess?.participants ? sess.participants.includes(p.username) : (p.sessionLog||[]).some(e=>e.sessionId===boardSessionId)
     const sp = p => (p.sessionLog||[]).filter(e=>e.sessionId===boardSessionId).reduce((s,e)=>s+e.points,0)

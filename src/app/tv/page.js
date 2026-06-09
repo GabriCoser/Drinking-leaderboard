@@ -39,7 +39,7 @@ export default function TvPage() {
   const board = players.filter(p => !activeSession?.participants || activeSession.participants.includes(p.username)).map(p => {
     const log = activeSession ? (p.sessionLog || []).filter(e => e.sessionId === activeSession.id) : (p.sessionLog || [])
     return { username: p.username, avatar: p.avatar, points: log.reduce((s, e) => s + e.points, 0), drinks: log.length }
-  }).sort((a, b) => b.points - a.points)
+  }).filter(p => activeSession ? true : p.drinks > 0).sort((a, b) => b.points - a.points)
   const feed = players.flatMap(p => p.sessionLog || [])
     .filter(e => !activeSession || e.sessionId === activeSession.id)
     .sort((a, b) => b.timestamp - a.timestamp).slice(0, 6)
