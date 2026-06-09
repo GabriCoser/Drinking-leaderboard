@@ -702,6 +702,7 @@ function AdminPanel({ onLogout }) {
   const [newSessionName, setNewSessionName] = useState('')
   const [autoClose, setAutoClose] = useState('')
   const [exportSession, setExportSession] = useState('')
+  const [board, setBoard] = useState([])
   const [players, setPlayers] = useState([])
   const [drinks, setDrinks] = useState([])
   const [newDrink, setNewDrink] = useState({ name:'', emoji:'🍺', points:'', ml:'', abv:'' })
@@ -711,13 +712,15 @@ function AdminPanel({ onLogout }) {
   const [loadingAdmin, setLoadingAdmin] = useState(false)
   const load = useCallback(async () => {
     try {
-      const [sr, pr, dr] = await Promise.all([
+      const [sr, pr, dr, br] = await Promise.all([
         fetch('/api/sessions').then(r => { if (!r.ok) throw new Error(); return r.json() }),
         fetch('/api/admin').then(r => { if (!r.ok) throw new Error(); return r.json() }),
         fetch('/api/drinks').then(r => { if (!r.ok) throw new Error(); return r.json() }),
+        fetch('/api/players').then(r => { if (!r.ok) throw new Error(); return r.json() }),
       ])
       setSessions(sr.sessions||[]); setActiveSession(sr.active)
       setPlayers(pr.users||[]); setDrinks(dr.drinks||[])
+      setBoard(br.players||[])
     } catch { showMsg('Errore nel caricamento dati') }
   }, [])
   useEffect(() => { load() }, [load])
@@ -885,9 +888,9 @@ function AdminPanel({ onLogout }) {
             </div>}
           </div>
           {activeSession ? (() => {
-            const sessionLog = players.flatMap(p=>(p.sessionLog||[]).filter(e=>String(e.sessionId)===String(activeSession.id)))
+            const sessionLog = board.flatMap(p=>(p.sessionLog||[]).filter(e=>String(e.sessionId)===String(activeSession.id)))
             const totalDrinks = sessionLog.length
-            const activePlayers = players.filter(p=>(p.sessionLog||[]).some(e=>String(e.sessionId)===String(activeSession.id)))
+            const activePlayers = board.filter(p=>(p.sessionLog||[]).some(e=>String(e.sessionId)===String(activeSession.id)))
             const avg = activePlayers.length ? (totalDrinks/activePlayers.length).toFixed(1) : 0
             const drinkCount = {}
             sessionLog.forEach(e=>{drinkCount[e.name]=(drinkCount[e.name]||0)+1})
@@ -919,7 +922,10 @@ function AdminPanel({ onLogout }) {
               </div>
               <div style={s.card()}>
                 <h3 style={{fontFamily:'Bebas Neue',fontSize:'1.2rem',color:'#888',marginBottom:'0.75rem'}}>CLASSIFICA SERATA</h3>
-                {players.filter(p=>p.role!=='admin').map((p,i)=>{
+                {[...board].sort((a,b)=>{
+                  const sp=p=>(p.sessionLog||[]).filter(e=>String(e.sessionId)===String(activeSession.id)).reduce((s,e)=>s+e.points,0)
+                  return sp(b)-sp(a)
+                }).map((p,i)=>{
                   const pts=(p.sessionLog||[]).filter(e=>String(e.sessionId)===String(activeSession.id)).reduce((s,e)=>s+e.points,0)
                   const dks=(p.sessionLog||[]).filter(e=>String(e.sessionId)===String(activeSession.id)).length
                   if(dks===0) return null

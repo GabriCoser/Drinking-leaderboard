@@ -28,6 +28,17 @@ export default function TvPage() {
     .filter(e => !activeSession || e.sessionId === activeSession.id)
     .sort((a, b) => b.timestamp - a.timestamp).slice(0, 6)
   const ago = ts => { const m = Math.floor((now - ts) / 60000); return m < 1 ? 'ora' : m < 60 ? m + ' min fa' : Math.floor(m / 60) + 'h fa' }
+  const sessionLog = players.flatMap(p => (p.sessionLog || []).filter(e => activeSession && e.sessionId === activeSession.id))
+  const drinkers = board.filter(p => p.drinks > 0).length
+  const avg = drinkers ? (sessionLog.length / drinkers).toFixed(1) : 0
+  const dc = {}; sessionLog.forEach(e => { dc[e.name] = (dc[e.name] || 0) + 1 })
+  const topDrink = Object.entries(dc).sort((a, b) => b[1] - a[1])[0]
+  const statBox = (val, label, color = '#f0f0f0') => (
+    <div style={{ flex: 1, background: '#1a1a1a', border: '1px solid #2e2e2e', borderRadius: '12px', padding: '0.7rem', textAlign: 'center', minWidth: 120 }}>
+      <div style={{ fontFamily: 'Bebas Neue', fontSize: '1.8rem', color, lineHeight: 1.1 }}>{val}</div>
+      <div style={{ color: '#888', fontSize: '0.75rem' }}>{label}</div>
+    </div>
+  )
   return (
     <main style={{ maxWidth: 900, margin: '0 auto', padding: '2rem 1.5rem' }}>
       <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
@@ -36,6 +47,14 @@ export default function TvPage() {
           ? <div style={{ marginTop: '0.5rem' }}><span style={{ color: '#3ce08a', fontSize: '1.2rem' }}>● LIVE</span> <span style={{ color: '#f0f0f0', fontSize: '1.2rem' }}>{activeSession.name}</span></div>
           : <div style={{ marginTop: '0.5rem', color: '#888', fontSize: '1.1rem' }}>Classifica generale</div>}
       </div>
+      {activeSession && (
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
+          {statBox(sessionLog.length, 'Drink totali', '#F5C518')}
+          {statBox(avg, 'Media a testa')}
+          {statBox(topDrink ? topDrink[0] : '-', topDrink ? `Drink più bevuto (${topDrink[1]}x)` : 'Drink più bevuto', '#3ce08a')}
+          {statBox(board[0]?.points ? board[0].username : '-', 'In testa', '#3ce08a')}
+        </div>
+      )}
       <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
         <div style={{ flex: '2 1 400px', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
           {board.map((p, i) => (
