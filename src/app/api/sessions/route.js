@@ -9,9 +9,9 @@ export async function POST(request) {
   try {
     const session = await getSession()
     if (!session || session.role !== 'admin') return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 })
-    const { name } = await request.json()
+    const { name, autoCloseAt } = await request.json()
     if (!name) return NextResponse.json({ error: 'Nome richiesto' }, { status: 400 })
-    return NextResponse.json({ session: await createSession(name) })
+    return NextResponse.json({ session: await createSession(name, autoCloseAt || null) })
   } catch { return NextResponse.json({ error: 'Errore server' }, { status: 500 }) }
 }
 export async function DELETE(request) {

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
-import { getDrinkLog, addDrinkEntry, removeDrinkEntry, getActiveSession } from '@/lib/db'
+import { getDrinkLog, addDrinkEntry, removeDrinkEntry, getActiveSession, updateDrinkNote } from '@/lib/db'
 export async function GET(request) {
   try {
     const session = await getSession()
@@ -18,8 +18,18 @@ export async function POST(request) {
     if (!session) return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 })
     const active = await getActiveSession()
     if (!active) return NextResponse.json({ error: 'Nessuna serata attiva' }, { status: 400 })
-    const { drink, foodContext } = await request.json()
-    return NextResponse.json({ entry: await addDrinkEntry(session.username, drink, active.id, foodContext) })
+    const { drink, foodContext, note } = await request.json()
+    return NextResponse.json({ entry: await addDrinkEntry(session.username, drink, active.id, foodContext, note || null) })
+  } catch { return NextResponse.json({ error: 'Errore server' }, { status: 500 }) }
+}
+export async function PATCH(request) {
+  try {
+    const session = await getSession()
+    if (!session) return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 })
+    const { entryId, note } = await request.json()
+    const entry = await updateDrinkNote(entryId, session.username, note || null)
+    if (!entry) return NextResponse.json({ error: 'Drink non trovato' }, { status: 404 })
+    return NextResponse.json({ entry })
   } catch { return NextResponse.json({ error: 'Errore server' }, { status: 500 }) }
 }
 export async function DELETE(request) {

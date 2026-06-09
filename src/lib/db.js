@@ -34,11 +34,20 @@ export async function addSessionPhoto(sessionId, photo) {
   await redis.set('session_photos', JSON.stringify(photos))
 }
 export async function getSessions() { const d = await redis.get('sessions'); return d ? JSON.parse(d) : [] }
-export async function getActiveSession() { const s = await getSessions(); return s.find(x => x.active) || null }
-export async function createSession(name) {
+export async function getActiveSession() {
+  const sessions = await getSessions()
+  const active = sessions.find(x => x.active) || null
+  if (active && active.autoCloseAt && Date.now() > active.autoCloseAt) {
+    active.active = false; active.closedAt = active.autoCloseAt
+    await redis.set('sessions', JSON.stringify(sessions))
+    return null
+  }
+  return active
+}
+export async function createSession(name, autoCloseAt = null) {
   const sessions = await getSessions()
   sessions.forEach(s => { if(s.active) { s.active = false; s.closedAt = Date.now(); } })
-  const session = { id: Date.now(), name, active: true, createdAt: Date.now(), closedAt: null }
+  const session = { id: Date.now(), name, active: true, createdAt: Date.now(), closedAt: null, autoCloseAt }
   sessions.push(session); await redis.set('sessions', JSON.stringify(sessions)); return session
 }
 export async function closeSession(sessionId) {
@@ -48,10 +57,16 @@ export async function closeSession(sessionId) {
   await redis.set('sessions', JSON.stringify(sessions))
 }
 export async function getDrinkLog() { const d = await redis.get('drinklog'); return d ? JSON.parse(d) : [] }
-export async function addDrinkEntry(username, drink, sessionId, foodContext = null) {
+export async function addDrinkEntry(username, drink, sessionId, foodContext = null, note = null) {
   const log = await getDrinkLog()
-  const entry = { id: Date.now(), username, sessionId, drinkId: drink.id, name: drink.name, emoji: drink.emoji, points: drink.points, ml: drink.ml, abv: drink.abv, foodContext, timestamp: Date.now() }
+  const entry = { id: Date.now(), username, sessionId, drinkId: drink.id, name: drink.name, emoji: drink.emoji, points: drink.points, ml: drink.ml, abv: drink.abv, foodContext, note, timestamp: Date.now() }
   log.push(entry); await redis.set('drinklog', JSON.stringify(log)); return entry
+}
+export async function updateDrinkNote(entryId, username, note) {
+  const log = await getDrinkLog()
+  const e = log.find(x => x.id === entryId && x.username === username)
+  if (!e) return null
+  e.note = note; await redis.set('drinklog', JSON.stringify(log)); return e
 }
 export async function removeDrinkEntry(entryId, username) {
   const log = await getDrinkLog()
@@ -95,4 +110,61 @@ export async function updateUserDrinks(username, drinks) {
   const others = log.filter(e => e.username !== username)
   const kept = log.filter(e => e.username === username).slice(-Math.max(0, drinks))
   await redis.set('drinklog', JSON.stringify([...others, ...kept]))
+}
+export async function toggleFavorite(username, drinkId) {
+  const users = await getUsers()
+  const u = users[username]; if (!u) return []
+  u.favorites = u.favorites || []
+  u.favorites = u.favorites.includes(drinkId) ? u.favorites.filter(d => d !== drinkId) : [...u.favorites, drinkId]
+  await redis.set('users', JSON.stringify(users)); return u.favorites
+}
+export async function getFavorites(username) {
+  const u = await getUser(username); return u?.favorites || []
+}
+export async function getSessionPhotosMap() { const d = await redis.get('session_photos'); return d ? JSON.parse(d) : {} }
+export async function setSessionPhotosMap(map) { await redis.set('session_photos', JSON.stringify(map)) }
+export async function togglePhotoReaction(sessionId, url, username, emoji) {
+  const map = await getSessionPhotosMap()
+  const photo = (map[sessionId] || []).find(p => p.url === url)
+  if (!photo) return null
+  photo.reactions = photo.reactions || {}
+  if (photo.reactions[username] === emoji) delete photo.reactions[username]
+  else photo.reactions[username] = emoji
+  await setSessionPhotosMap(map); return photo
+}
+export async function getChallenges() {
+  // finalizza le sfide accettate la cui scadenza è passata
+  const d = await redis.get('challenges')
+  const all = d ? JSON.parse(d) : []
+  const log = await getDrinkLog()
+  let changed = false
+  for (const c of all) {
+    const expired = Date.now() > c.deadline
+    if (c.status === 'pending' && expired) { c.status = 'declined'; changed = true }
+    if (c.status === 'accepted' && expired) {
+      const pts = u => log.filter(e => e.username === u && e.sessionId === c.sessionId).reduce((s, e) => s + e.points, 0)
+      c.result = { challenger: pts(c.challenger), challenged: pts(c.challenged) }
+      c.status = c.result.challenged >= c.result.challenger ? 'completed' : 'failed'
+      changed = true
+    }
+  }
+  if (changed) await redis.set('challenges', JSON.stringify(all))
+  return all
+}
+export async function createChallenge(challenger, challenged, sessionId, deadline) {
+  const all = await getChallenges()
+  const dup = all.find(c => c.sessionId === sessionId && c.challenger === challenger && c.challenged === challenged && ['pending', 'accepted'].includes(c.status))
+  if (dup) return dup
+  const challenge = { id: Date.now(), challenger, challenged, sessionId, deadline, status: 'pending', createdAt: Date.now() }
+  all.push(challenge)
+  await redis.set('challenges', JSON.stringify(all))
+  return challenge
+}
+export async function respondChallenge(id, username, accept) {
+  const all = await getChallenges()
+  const c = all.find(x => x.id === id && x.challenged === username && x.status === 'pending')
+  if (!c) return null
+  c.status = accept ? 'accepted' : 'declined'
+  await redis.set('challenges', JSON.stringify(all))
+  return c
 }
