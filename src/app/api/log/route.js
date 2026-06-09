@@ -18,6 +18,7 @@ export async function POST(request) {
     if (!session) return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 })
     const active = await getActiveSession()
     if (!active) return NextResponse.json({ error: 'Nessuna serata attiva' }, { status: 400 })
+    if (active.participants && !active.participants.includes(session.username)) return NextResponse.json({ error: 'Iscriviti alla serata prima di aggiungere drink' }, { status: 403 })
     const { drink, foodContext, note } = await request.json()
     return NextResponse.json({ entry: await addDrinkEntry(session.username, drink, active.id, foodContext, note || null) })
   } catch { return NextResponse.json({ error: 'Errore server' }, { status: 500 }) }

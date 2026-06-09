@@ -20,7 +20,7 @@ export default function TvPage() {
     const t = setInterval(() => setNow(Date.now()), 30000)
     return () => { clearInterval(i); clearInterval(t) }
   }, [])
-  const board = players.map(p => {
+  const board = players.filter(p => !activeSession?.participants || activeSession.participants.includes(p.username)).map(p => {
     const log = activeSession ? (p.sessionLog || []).filter(e => e.sessionId === activeSession.id) : (p.sessionLog || [])
     return { username: p.username, avatar: p.avatar, points: log.reduce((s, e) => s + e.points, 0), drinks: log.length }
   }).sort((a, b) => b.points - a.points)

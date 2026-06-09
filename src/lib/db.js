@@ -47,8 +47,18 @@ export async function getActiveSession() {
 export async function createSession(name, autoCloseAt = null) {
   const sessions = await getSessions()
   sessions.forEach(s => { if(s.active) { s.active = false; s.closedAt = Date.now(); } })
-  const session = { id: Date.now(), name, active: true, createdAt: Date.now(), closedAt: null, autoCloseAt }
+  const session = { id: Date.now(), name, active: true, createdAt: Date.now(), closedAt: null, autoCloseAt, participants: [] }
   sessions.push(session); await redis.set('sessions', JSON.stringify(sessions)); return session
+}
+export async function setSessionParticipation(sessionId, username, join) {
+  const sessions = await getSessions()
+  const s = sessions.find(x => x.id === sessionId && x.active)
+  if (!s) return null
+  s.participants = s.participants || []
+  if (join && !s.participants.includes(username)) s.participants.push(username)
+  if (!join) s.participants = s.participants.filter(u => u !== username)
+  await redis.set('sessions', JSON.stringify(sessions))
+  return s
 }
 export async function closeSession(sessionId) {
   const sessions = await getSessions()

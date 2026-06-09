@@ -204,9 +204,12 @@ function PlayerView({ user, onLogout }) {
       const allLog = (pr.players||[]).flatMap(p=>p.sessionLog||[])
       const rank = (pr.players||[]).findIndex(p=>p.username===user.username)+1
       const prev = prevRef.current
+      const parts = pr.activeSession?.participants || []
       if (prev) {
         allLog.filter(e=>e.username!==user.username && !prev.logIds.has(e.id)).slice(0,3)
           .forEach(e=>pushToast(`${e.emoji} ${e.username} ha aggiunto ${e.name}`))
+        parts.filter(u=>prev.parts && !prev.parts.has(u) && u!==user.username)
+          .forEach(u=>pushToast(`🙋 ${u} partecipa alla serata!`))
         if (prev.rank>0 && rank>prev.rank) pushToast('📉 Ti hanno superato in classifica!')
         ;(cr.challenges||[]).forEach(c=>{
           const involved = c.challenger===user.username||c.challenged===user.username
@@ -220,7 +223,7 @@ function PlayerView({ user, onLogout }) {
           }
         })
       }
-      prevRef.current = { logIds:new Set(allLog.map(e=>e.id)), rank, challenges:Object.fromEntries((cr.challenges||[]).map(c=>[c.id,c.status])) }
+      prevRef.current = { logIds:new Set(allLog.map(e=>e.id)), rank, parts:new Set(parts), challenges:Object.fromEntries((cr.challenges||[]).map(c=>[c.id,c.status])) }
     } catch { setLoadError('Errore nel caricamento dati') }
   }, [user.username, pushToast])
   useEffect(() => { load(); const i = setInterval(load, 15000); return () => clearInterval(i) }, [load])
@@ -244,6 +247,10 @@ function PlayerView({ user, onLogout }) {
     setBacInfo(info); setBacSaved(true); setTimeout(()=>setBacSaved(false),2000); load()
   }
   async function logout() { await fetch('/api/auth/logout',{method:'POST'}); onLogout() }
+  async function setParticipation(join) {
+    await fetch('/api/sessions',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:join?'join':'leave'})})
+    load()
+  }
   async function sendChallenge(challenged, deadline) {
     const res = await fetch('/api/challenges',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({challenged,deadline})})
     const d = await res.json()
@@ -279,6 +286,17 @@ function PlayerView({ user, onLogout }) {
   const bs = bacStatus(bac)
   const viewLog = selectedSession ? myLog.filter(e=>e.sessionId===selectedSession) : myLog
   const soberMs = bac > 0.002 ? (bac/0.015)*3600000 : 0
+  // serate vecchie senza lista iscritti: tutti partecipano
+  const hasRoster = Array.isArray(activeSession?.participants)
+  const joined = !!activeSession && (!hasRoster || activeSession.participants.includes(user.username))
+  const canDrink = !!activeSession && joined
+  const boardPlayers = (() => {
+    if (!selectedSession) return players
+    const sess = sessions.find(ss=>ss.id===selectedSession)
+    const inSess = p => sess?.participants ? sess.participants.includes(p.username) : (p.sessionLog||[]).some(e=>e.sessionId===selectedSession)
+    const sp = p => (p.sessionLog||[]).filter(e=>e.sessionId===selectedSession).reduce((s,e)=>s+e.points,0)
+    return players.filter(inSess).sort((a,b)=>sp(b)-sp(a))
+  })()
   const myChallenges = activeSession ? challenges.filter(c=>c.sessionId===activeSession.id && (c.challenger===user.username||c.challenged===user.username) && c.status!=='declined') : []
   const feed = players.flatMap(p=>p.sessionLog||[]).filter(e=>activeSession?e.sessionId===activeSession.id:true).sort((a,b)=>b.timestamp-a.timestamp).slice(0,8)
   const sessPoints = u => players.find(p=>p.username===u)?.sessionLog?.filter(e=>activeSession&&e.sessionId===activeSession.id).reduce((s,e)=>s+e.points,0) ?? 0
@@ -323,7 +341,18 @@ function PlayerView({ user, onLogout }) {
       </div>
       {loadError && <div style={{ margin:'0 1rem 0.5rem', background:'#220000', border:'1px solid #e03c3c', borderRadius:'8px', padding:'0.5rem 1rem', color:'#e03c3c', fontSize:'0.85rem' }}>{loadError}</div>}
       {activeSession
-        ? <div style={{ margin:'0 1rem 1rem', background:'#0d2200', border:'1px solid #3ce08a', borderRadius:'8px', padding:'0.5rem 1rem', display:'flex', gap:'0.5rem', alignItems:'center' }}><span style={{ color:'#3ce08a', fontSize:'0.75rem' }}>● LIVE</span><span style={{ color:'#f0f0f0', fontSize:'0.85rem' }}>{activeSession.name}</span></div>
+        ? <div style={{ margin:'0 1rem 1rem', background:'#0d2200', border:'1px solid #3ce08a', borderRadius:'8px', padding:'0.5rem 1rem' }}>
+            <div style={{ display:'flex', gap:'0.5rem', alignItems:'center' }}>
+              <span style={{ color:'#3ce08a', fontSize:'0.75rem' }}>● LIVE</span>
+              <span style={{ color:'#f0f0f0', fontSize:'0.85rem', flex:1 }}>{activeSession.name}</span>
+              {hasRoster && (joined
+                ? <button onClick={()=>setParticipation(false)} style={s.btn('transparent','#3ce08a',{fontSize:'0.75rem',padding:'0.2rem 0.5rem',border:'1px solid #3ce08a44'})}>✓ Ci sei</button>
+                : <button onClick={()=>setParticipation(true)} style={s.btn('#3ce08a','#000',{fontSize:'0.85rem',padding:'0.3rem 0.8rem'})}>🙋 Partecipo!</button>)}
+            </div>
+            {hasRoster && activeSession.participants.length > 0 && (
+              <div style={{ color:'#888', fontSize:'0.7rem', marginTop:'0.3rem' }}>🙋 {activeSession.participants.length} iscritt{activeSession.participants.length===1?'o':'i'}: {activeSession.participants.join(', ')}</div>
+            )}
+          </div>
         : <div style={{ margin:'0 1rem 1rem', background:'#1a1a1a', border:'1px solid #2e2e2e', borderRadius:'8px', padding:'0.5rem 1rem' }}><span style={{ color:'#888', fontSize:'0.85rem' }}>Nessuna serata attiva</span></div>
       }
       <div style={{ display:'flex', gap:'0.4rem', padding:'0 1rem 1rem', overflowX:'auto' }}>
@@ -417,6 +446,12 @@ function PlayerView({ user, onLogout }) {
         {tab==='drinks' && (
           <div style={{ display:'flex', flexDirection:'column', gap:'0.75rem' }}>
             {!activeSession && <div style={{ background:'#2a1500', border:'1px solid #e03c3c', borderRadius:'8px', padding:'0.75rem', color:'#e03c3c', fontSize:'0.85rem' }}>Nessuna serata attiva</div>}
+            {activeSession && !joined && (
+              <div style={{ background:'#2a1500', border:'1px solid #e03c3c', borderRadius:'8px', padding:'0.75rem' }}>
+                <p style={{ color:'#e03c3c', fontSize:'0.85rem', marginBottom:'0.5rem' }}>Non sei iscritto a questa serata</p>
+                <button onClick={()=>setParticipation(true)} style={s.btn('#3ce08a','#000',{width:'100%',padding:'0.5rem',fontSize:'1rem'})}>🙋 Partecipo!</button>
+              </div>
+            )}
             <div><label style={s.label}>Contesto cibo</label>
               <select value={food} onChange={e=>setFood(e.target.value)} style={{ ...s.input, appearance:'none' }}>
                 <option value="non_specificato">Non specificato</option>
@@ -427,7 +462,7 @@ function PlayerView({ user, onLogout }) {
             </div>
             {[...drinks.filter(d=>favorites.includes(d.id)), ...drinks.filter(d=>!favorites.includes(d.id))].map(drink => {
               const fav = favorites.includes(drink.id)
-              return <div key={drink.id} onClick={()=>activeSession&&addDrink(drink)} style={{ ...s.card(fav), display:'flex', alignItems:'center', gap:'1rem', border:`1px solid ${fav?'#c9a014':'#2e2e2e'}`, cursor:activeSession?'pointer':'not-allowed', opacity:activeSession?1:0.5, width:'100%', textAlign:'left' }}>
+              return <div key={drink.id} onClick={()=>canDrink&&addDrink(drink)} style={{ ...s.card(fav), display:'flex', alignItems:'center', gap:'1rem', border:`1px solid ${fav?'#c9a014':'#2e2e2e'}`, cursor:canDrink?'pointer':'not-allowed', opacity:canDrink?1:0.5, width:'100%', textAlign:'left' }}>
                 <span style={{ fontSize:'1.8rem' }}>{drink.emoji}</span>
                 <div style={{ flex:1 }}><div style={{ color:'#f0f0f0', fontSize:'1rem', fontWeight:600 }}>{drink.name}</div><div style={{ color:'#888', fontSize:'0.75rem' }}>{drink.ml}ml / {drink.abv}%</div></div>
                 <div style={{ textAlign:'right' }}><div style={{ fontFamily:'Bebas Neue', fontSize:'1.4rem', color:'#F5C518' }}>{drink.points}</div><div style={{ color:'#888', fontSize:'0.7rem' }}>punti</div></div>
@@ -468,7 +503,8 @@ function PlayerView({ user, onLogout }) {
                 {sessions.map(ss=><option key={ss.id} value={ss.id}>{ss.name}{ss.active?' (in corso)':''}</option>)}
               </select>
             </div>
-            {players.map((player,i)=>{
+            {boardPlayers.length===0 && <p style={{color:'#888',textAlign:'center',padding:'2rem'}}>Nessun iscritto a questa serata</p>}
+            {boardPlayers.map((player,i)=>{
               const pts=selectedSession?(player.sessionLog||[]).filter(e=>e.sessionId===selectedSession).reduce((s,e)=>s+e.points,0):player.points
               const dks=selectedSession?(player.sessionLog||[]).filter(e=>e.sessionId===selectedSession).length:player.drinks
               const isMe=player.username===user.username
@@ -787,7 +823,7 @@ function AdminPanel({ onLogout }) {
             <div key={sess.id} style={s.card(sess.active)}>
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
                 <div><div style={{ fontFamily:'Bebas Neue', fontSize:'1.2rem', color:sess.active?'#F5C518':'#f0f0f0' }}>{sess.name}</div>
-                <div style={{ color:'#888', fontSize:'0.75rem' }}>Aperta: {fmtDate(sess.createdAt)} {fmtTime(sess.createdAt)}{sess.closedAt ? ' · Chiusa: '+fmtDate(sess.closedAt)+' '+fmtTime(sess.closedAt) : ''}{sess.active && sess.autoCloseAt ? ' · ⏰ auto-chiusura '+fmtTime(sess.autoCloseAt) : ''}</div><div style={{marginTop:'0.25rem'}}><span style={{background:sess.active?'#3ce08a22':'#2e2e2e',color:sess.active?'#3ce08a':'#888',fontSize:'0.7rem',padding:'0.15rem 0.5rem',borderRadius:'4px'}}>{sess.active?'● Aperta':'✕ Chiusa'}</span></div></div>
+                <div style={{ color:'#888', fontSize:'0.75rem' }}>Aperta: {fmtDate(sess.createdAt)} {fmtTime(sess.createdAt)}{sess.closedAt ? ' · Chiusa: '+fmtDate(sess.closedAt)+' '+fmtTime(sess.closedAt) : ''}{sess.active && sess.autoCloseAt ? ' · ⏰ auto-chiusura '+fmtTime(sess.autoCloseAt) : ''}{sess.participants ? ' · 🙋 '+sess.participants.length : ''}</div><div style={{marginTop:'0.25rem'}}><span style={{background:sess.active?'#3ce08a22':'#2e2e2e',color:sess.active?'#3ce08a':'#888',fontSize:'0.7rem',padding:'0.15rem 0.5rem',borderRadius:'4px'}}>{sess.active?'● Aperta':'✕ Chiusa'}</span></div></div>
                 {sess.active?<button onClick={()=>closeSession(sess.id)} disabled={loadingAdmin} style={s.btn('#2e2e2e','#e03c3c',{fontSize:'0.8rem',opacity:loadingAdmin?0.5:1})}>Chiudi</button>:<button onClick={()=>deleteSession(sess.id)} disabled={loadingAdmin} style={s.btn('#2e2e2e','#e03c3c',{fontSize:'0.8rem',opacity:loadingAdmin?0.3:0.6})}>Elimina</button>}
               </div>
             </div>
