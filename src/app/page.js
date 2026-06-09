@@ -324,6 +324,9 @@ function PlayerView({ user, onLogout }) {
               return <div key={player.username} style={s.card(isMe,{border:isMe?'1px solid #F5C518':'1px solid #2e2e2e'})}>
                 <div style={{display:'flex',alignItems:'center',gap:'1rem',cursor:'pointer'}} onClick={()=>setViewingPlayer(open?null:player.username)}>
                   <span style={{width:36,height:36,background:i<3?'#F5C518':'#2e2e2e',borderRadius:'8px',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'Bebas Neue',fontSize:'1rem',color:i<3?'#000':'#888',flexShrink:0}}>{i<3?['👑','2','3'][i]:i+1}</span>
+                  <span style={{width:36,height:36,borderRadius:'50%',background:'#2e2e2e',overflow:'hidden',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
+                    {player.avatar?<img src={player.avatar} style={{width:'100%',height:'100%',objectFit:'cover'}} />:<span style={{fontSize:'1.2rem'}}>👤</span>}
+                  </span>
                   <div style={{flex:1}}>
                     <div style={{fontFamily:'Bebas Neue',fontSize:'1.3rem',color:isMe?'#F5C518':'#f0f0f0'}}>{player.username} <span style={{fontSize:'0.7rem',color:'#555'}}>{open?'▲':'▼'}</span>{isMe&&<span style={{background:'#F5C518',color:'#000',fontSize:'0.6rem',padding:'0.1rem 0.3rem',borderRadius:'3px',marginLeft:'0.5rem'}}>TU</span>}</div>
                     <div style={{color:'#888',fontSize:'0.75rem'}}>{dks} drink{pBac!==null?' / BAC '+pBac.toFixed(3)+'%':''}</div>
@@ -349,8 +352,11 @@ function PlayerView({ user, onLogout }) {
                 <label style={{ cursor:'pointer', display:'block', textAlign:'center', background:'#2e2e2e', border:'2px dashed #888', borderRadius:'12px', padding:'1.5rem', color:'#888', fontSize:'0.9rem' }}>
                   {uploading ? '📤 Caricamento...' : '📸 Tocca per aggiungere foto alla serata'}
                   <input type='file' accept='image/*' style={{ display:'none' }} onChange={async e => {
+                    const file = e.target.files[0]; if (!file) return
+                    e.target.value = ''
                     setUploading(true)
-                    await compressAndUpload(file, 'session', activeSession.id)
+                    const data = await compressAndUpload(file, 'session', activeSession.id)
+                    if (data.error) alert('Errore caricamento: ' + data.error)
                     const d = await fetch('/api/photos?sessionId='+activeSession.id).then(r=>r.json())
                     setSessionPhotos(d.photos||[])
                     setUploading(false)
@@ -388,9 +394,11 @@ function PlayerView({ user, onLogout }) {
                 {uploading ? 'Caricamento...' : 'Cambia foto'}
                 <input type='file' accept='image/*' style={{ display:'none' }} onChange={async e => {
                   const file = e.target.files[0]; if (!file) return
+                  e.target.value = ''
                   setUploading(true)
                   const data = await compressAndUpload(file, 'avatar')
                   if (data.url) setAvatar(data.url)
+                  else if (data.error) alert('Errore caricamento: ' + data.error)
                   setUploading(false)
                 }} />
               </label>

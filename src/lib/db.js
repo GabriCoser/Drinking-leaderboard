@@ -1,8 +1,15 @@
 import Redis from 'ioredis'
 import { DEFAULT_DRINKS } from './drinks.js'
-if (!process.env.REDIS_URL) throw new Error('REDIS_URL environment variable is not set')
-const redis = new Redis(process.env.REDIS_URL, { maxRetriesPerRequest: 3, connectTimeout: 5000 })
-redis.on('error', (err) => console.error('[Redis] connection error:', err.message))
+let _client = null
+function getRedis() {
+  if (!_client) {
+    if (!process.env.REDIS_URL) throw new Error('REDIS_URL environment variable is not set')
+    _client = new Redis(process.env.REDIS_URL, { maxRetriesPerRequest: 3, connectTimeout: 5000 })
+    _client.on('error', (err) => console.error('[Redis] connection error:', err.message))
+  }
+  return _client
+}
+const redis = { get: (...a) => getRedis().get(...a), set: (...a) => getRedis().set(...a) }
 export async function getUsers() { const d = await redis.get('users'); return d ? JSON.parse(d) : {} }
 export async function getUser(username) { const u = await getUsers(); return u[username] || null }
 export async function createUser(username, hashedPassword, role = 'player') {
@@ -15,6 +22,17 @@ export async function updateBacInfo(username, bacInfo) {
   users[username].bac_info = bacInfo; await redis.set('users', JSON.stringify(users)); return users[username]
 }
 export async function deleteUser(username) { const u = await getUsers(); delete u[username]; await redis.set('users', JSON.stringify(u)) }
+export async function updateUserAvatar(username, url) {
+  const users = await getUsers(); if (!users[username]) return null
+  users[username].avatar = url; await redis.set('users', JSON.stringify(users)); return users[username]
+}
+export async function addSessionPhoto(sessionId, photo) {
+  const d = await redis.get('session_photos')
+  const photos = d ? JSON.parse(d) : {}
+  if (!photos[sessionId]) photos[sessionId] = []
+  photos[sessionId].push(photo)
+  await redis.set('session_photos', JSON.stringify(photos))
+}
 export async function getSessions() { const d = await redis.get('sessions'); return d ? JSON.parse(d) : [] }
 export async function getActiveSession() { const s = await getSessions(); return s.find(x => x.active) || null }
 export async function createSession(name) {
@@ -59,7 +77,7 @@ export async function getLeaderboard(sessionId = null) {
   return players.map(u => {
     const userLog = sessionId ? log.filter(e => e.username === u.username && e.sessionId === sessionId) : log.filter(e => e.username === u.username)
     const points = userLog.reduce((sum, e) => sum + e.points, 0)
-    return { username: u.username, points, drinks: userLog.length, bac_info: u.bac_info, sessionLog: log.filter(e => e.username === u.username) }
+    return { username: u.username, points, drinks: userLog.length, bac_info: u.bac_info, avatar: u.avatar || null, sessionLog: log.filter(e => e.username === u.username) }
   }).sort((a, b) => b.points - a.points)
 }
 export async function deleteSession(sessionId) {
