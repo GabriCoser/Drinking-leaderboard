@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { CATEGORIES } from '@/lib/drinks'
 const MEDAL = ['🥇', '🥈', '🥉']
 const s = {
   btn: (bg, color = '#fff', extra = {}) => ({ background: bg, color, border: 'none', borderRadius: '8px', padding: '0.5rem 1rem', cursor: 'pointer', fontFamily: 'Bebas Neue', fontSize: '1.1rem', letterSpacing: '0.05em', ...extra }),
@@ -81,7 +82,7 @@ const ACHIEVEMENTS = [
   { id:'eight_night', emoji:'🐙', name:'Piovra', desc:'8 drink in una serata', check:(log)=>maxPerSession(log)>=8 },
   { id:'fifty', emoji:'💯', name:'Mezzo secolo', desc:'50 punti totali', check:(log)=>log.reduce((s,e)=>s+e.points,0)>=50 },
   { id:'explorer', emoji:'🌈', name:'Esploratore', desc:'5 drink diversi provati', check:(log)=>new Set(log.map(e=>e.drinkId)).size>=5 },
-  { id:'shots', emoji:'🥃', name:'Shottomane', desc:'3 shot in una serata', check:(log)=>{const m={};log.filter(e=>e.drinkId==='shot').forEach(e=>{m[e.sessionId]=(m[e.sessionId]||0)+1});return Object.values(m).some(v=>v>=3)} },
+  { id:'shots', emoji:'🥃', name:'Shottomane', desc:'3 shot in una serata', check:(log)=>{const m={};log.filter(e=>/^shot/.test(e.drinkId||'')).forEach(e=>{m[e.sessionId]=(m[e.sessionId]||0)+1});return Object.values(m).some(v=>v>=3)} },
   { id:'owl', emoji:'🦉', name:'Gufo', desc:'Un drink dopo le 3 di notte', check:(log)=>log.some(e=>{const h=new Date(e.timestamp).getHours();return h>=3&&h<6}) },
   { id:'leader', emoji:'👑', name:'Capolista', desc:'Primo in classifica generale', check:(log,rank)=>rank===1&&log.length>0 },
 ]
@@ -173,6 +174,7 @@ function PlayerView({ user, onLogout }) {
   const [favorites, setFavorites] = useState([])
   const [note, setNote] = useState('')
   const [challengeTarget, setChallengeTarget] = useState(null)
+  const [openCats, setOpenCats] = useState({ birra: true })
   const prevRef = useRef(null)
   const pushToast = useCallback(text => {
     const id = Date.now() + Math.random()
@@ -460,15 +462,36 @@ function PlayerView({ user, onLogout }) {
                 <option value="pasto_completo">Pasto completo</option>
               </select>
             </div>
-            {[...drinks.filter(d=>favorites.includes(d.id)), ...drinks.filter(d=>!favorites.includes(d.id))].map(drink => {
-              const fav = favorites.includes(drink.id)
-              return <div key={drink.id} onClick={()=>canDrink&&addDrink(drink)} style={{ ...s.card(fav), display:'flex', alignItems:'center', gap:'1rem', border:`1px solid ${fav?'#c9a014':'#2e2e2e'}`, cursor:canDrink?'pointer':'not-allowed', opacity:canDrink?1:0.5, width:'100%', textAlign:'left' }}>
-                <span style={{ fontSize:'1.8rem' }}>{drink.emoji}</span>
-                <div style={{ flex:1 }}><div style={{ color:'#f0f0f0', fontSize:'1rem', fontWeight:600 }}>{drink.name}</div><div style={{ color:'#888', fontSize:'0.75rem' }}>{drink.ml}ml / {drink.abv}%</div></div>
-                <div style={{ textAlign:'right' }}><div style={{ fontFamily:'Bebas Neue', fontSize:'1.4rem', color:'#F5C518' }}>{drink.points}</div><div style={{ color:'#888', fontSize:'0.7rem' }}>punti</div></div>
-                <button onClick={e=>{e.stopPropagation();toggleFav(drink.id)}} style={{background:'none',border:'none',fontSize:'1.3rem',cursor:'pointer',padding:'0.2rem',opacity:fav?1:0.35}} title={fav?'Rimuovi dai preferiti':'Aggiungi ai preferiti'}>⭐</button>
-              </div>
-            })}
+            {(() => {
+              const renderDrink = drink => {
+                const fav = favorites.includes(drink.id)
+                return <div key={drink.id} onClick={()=>canDrink&&addDrink(drink)} style={{ ...s.card(fav), display:'flex', alignItems:'center', gap:'1rem', border:`1px solid ${fav?'#c9a014':'#2e2e2e'}`, cursor:canDrink?'pointer':'not-allowed', opacity:canDrink?1:0.5, width:'100%', textAlign:'left' }}>
+                  <span style={{ fontSize:'1.8rem' }}>{drink.emoji}</span>
+                  <div style={{ flex:1 }}><div style={{ color:'#f0f0f0', fontSize:'1rem', fontWeight:600 }}>{drink.name}</div><div style={{ color:'#888', fontSize:'0.75rem' }}>{drink.ml}ml / {drink.abv}%</div></div>
+                  <div style={{ textAlign:'right' }}><div style={{ fontFamily:'Bebas Neue', fontSize:'1.4rem', color:'#F5C518' }}>{drink.points}</div><div style={{ color:'#888', fontSize:'0.7rem' }}>punti</div></div>
+                  <button onClick={e=>{e.stopPropagation();toggleFav(drink.id)}} style={{background:'none',border:'none',fontSize:'1.3rem',cursor:'pointer',padding:'0.2rem',opacity:fav?1:0.35}} title={fav?'Rimuovi dai preferiti':'Aggiungi ai preferiti'}>⭐</button>
+                </div>
+              }
+              const favDrinks = drinks.filter(d=>favorites.includes(d.id))
+              return <>
+                {favDrinks.length > 0 && <>
+                  <div style={{ color:'#F5C518', letterSpacing:'0.05em', fontFamily:'Bebas Neue', fontSize:'1.1rem' }}>⭐ PREFERITI</div>
+                  {favDrinks.map(renderDrink)}
+                </>}
+                {CATEGORIES.map(([key, label]) => {
+                  const list = drinks.filter(d=>(d.category||'altro')===key && !favorites.includes(d.id))
+                  if (!list.length) return null
+                  const openC = !!openCats[key]
+                  return <div key={key} style={{ display:'flex', flexDirection:'column', gap:'0.75rem' }}>
+                    <button onClick={()=>setOpenCats(o=>({...o,[key]:!o[key]}))} style={{ background:'#1a1a1a', border:'1px solid #2e2e2e', borderRadius:'10px', padding:'0.7rem 1rem', display:'flex', alignItems:'center', justifyContent:'space-between', cursor:'pointer', width:'100%' }}>
+                      <span style={{ fontFamily:'Bebas Neue', fontSize:'1.2rem', color:openC?'#F5C518':'#f0f0f0', letterSpacing:'0.05em' }}>{label}</span>
+                      <span style={{ color:'#888', fontSize:'0.8rem' }}>{list.length} {openC?'▲':'▼'}</span>
+                    </button>
+                    {openC && list.map(renderDrink)}
+                  </div>
+                })}
+              </>
+            })()}
           </div>
         )}
         {tab==='log' && (
@@ -705,7 +728,7 @@ function AdminPanel({ onLogout }) {
   const [board, setBoard] = useState([])
   const [players, setPlayers] = useState([])
   const [drinks, setDrinks] = useState([])
-  const [newDrink, setNewDrink] = useState({ name:'', emoji:'🍺', points:'', ml:'', abv:'' })
+  const [newDrink, setNewDrink] = useState({ name:'', emoji:'🍺', points:'', ml:'', abv:'', category:'altro' })
   const [newUser, setNewUser] = useState({ username:'', password:'' })
   const [msg, setMsg] = useState('')
   const [confirmAction, setConfirmAction] = useState(null)
@@ -759,7 +782,7 @@ function AdminPanel({ onLogout }) {
     if (!newDrink.name||!newDrink.points||!newDrink.ml||!newDrink.abv) return showMsg('Compila tutti i campi')
     setLoadingAdmin(true)
     await fetch('/api/drinks', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({...newDrink,points:parseInt(newDrink.points),ml:parseFloat(newDrink.ml),abv:parseFloat(newDrink.abv)}) })
-    setNewDrink({name:'',emoji:'🍺',points:'',ml:'',abv:''}); showMsg('Drink aggiunto!'); load()
+    setNewDrink({name:'',emoji:'🍺',points:'',ml:'',abv:'',category:'altro'}); showMsg('Drink aggiunto!'); load()
     setLoadingAdmin(false)
   }
   function removeDrink(id) {
@@ -859,6 +882,9 @@ function AdminPanel({ onLogout }) {
                 <input style={{ ...s.input, flex:1 }} type="number" value={newDrink.ml} placeholder="ml" onChange={e=>setNewDrink(d=>({...d,ml:e.target.value}))} />
                 <input style={{ ...s.input, flex:1 }} type="number" value={newDrink.abv} placeholder="% alcol" onChange={e=>setNewDrink(d=>({...d,abv:e.target.value}))} />
               </div>
+              <select value={newDrink.category} onChange={e=>setNewDrink(d=>({...d,category:e.target.value}))} style={{ ...s.input, appearance:'none' }}>
+                {CATEGORIES.map(([k,l])=><option key={k} value={k}>{l}</option>)}
+              </select>
               <button onClick={addDrink} disabled={loadingAdmin} style={s.btn('#F5C518','#000',{width:'100%',padding:'0.7rem',opacity:loadingAdmin?0.5:1})}>Aggiungi</button>
             </div>
           </div>

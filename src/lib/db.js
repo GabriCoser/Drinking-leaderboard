@@ -82,7 +82,19 @@ export async function removeDrinkEntry(entryId, username) {
   const log = await getDrinkLog()
   await redis.set('drinklog', JSON.stringify(log.filter(e => !(e.id === entryId && e.username === username))))
 }
+const CATALOG_VERSION = 2
 export async function getDrinksCatalog() {
+  const v = parseInt(await redis.get('drinks_catalog_version') || '0', 10)
+  if (v < CATALOG_VERSION) {
+    // reseed mantenendo i drink custom aggiunti dall'admin
+    const d = await redis.get('drinks_catalog')
+    const existing = d ? JSON.parse(d) : []
+    const custom = existing.filter(x => String(x.id).startsWith('custom_'))
+    const merged = [...DEFAULT_DRINKS, ...custom]
+    await redis.set('drinks_catalog', JSON.stringify(merged))
+    await redis.set('drinks_catalog_version', String(CATALOG_VERSION))
+    return merged
+  }
   const d = await redis.get('drinks_catalog')
   if (!d) { await redis.set('drinks_catalog', JSON.stringify(DEFAULT_DRINKS)); return DEFAULT_DRINKS }
   return JSON.parse(d)
