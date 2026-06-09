@@ -67,3 +67,12 @@ export async function deleteSession(sessionId) {
   const log = await getDrinkLog()
   await redis.set('drinklog', JSON.stringify(log.filter(e => e.sessionId !== sessionId)))
 }
+export async function resetAllDrinks() {
+  await redis.set('drinklog', JSON.stringify([]))
+}
+export async function updateUserDrinks(username, drinks) {
+  const log = await getDrinkLog()
+  const others = log.filter(e => e.username !== username)
+  const kept = log.filter(e => e.username === username).slice(-Math.max(0, drinks))
+  await redis.set('drinklog', JSON.stringify([...others, ...kept]))
+}

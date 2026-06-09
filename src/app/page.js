@@ -30,8 +30,7 @@ function bacStatus(b) {
 }
 async function compressAndUpload(file, type, sessionId = null) {
   try {
-    if (!file) { alert('Nessun file selezionato'); return { error: 'no file' } }
-    alert('1. File: ' + file.name + ' (' + Math.round(file.size/1024) + 'KB)')
+    if (!file) return { error: 'no file' }
     const dataUrl = await new Promise((resolve, reject) => {
       const reader = new FileReader()
       const timeout = setTimeout(() => reject(new Error('Timeout lettura file')), 15000)
@@ -56,17 +55,13 @@ async function compressAndUpload(file, type, sessionId = null) {
       reader.onerror = () => { clearTimeout(timeout); reject(new Error('Errore lettura file')) }
       reader.readAsDataURL(file)
     })
-    alert('2. Compressione OK, invio...')
     const res = await fetch('/api/upload', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ image: dataUrl, type, sessionId: sessionId ? String(sessionId) : null })
     })
-    const data = await res.json()
-    alert('3. Risposta: ' + JSON.stringify(data).substring(0, 100))
-    return data
+    return await res.json()
   } catch (e) {
-    alert('ERRORE: ' + e.message)
     return { error: e.message }
   }
 }
@@ -149,31 +144,36 @@ function PlayerView({ user, onLogout }) {
   const [viewingPlayer, setViewingPlayer] = useState(null)
   const [bacForm, setBacForm] = useState({ weight:'', height:'', age:'', sex:'M' })
   const [bacSaved, setBacSaved] = useState(false)
+  const [bacError, setBacError] = useState('')
+  const [loadError, setLoadError] = useState('')
   const [confirmDrink, setConfirmDrink] = useState(null)
   const [avatar, setAvatar] = useState(null)
   const [uploading, setUploading] = useState(false)
   const [sessionPhotos, setSessionPhotos] = useState([])
   const load = useCallback(async () => {
-    const [pr, dr, lr, sr] = await Promise.all([
-      fetch('/api/players').then(r=>r.json()),
-      fetch('/api/drinks').then(r=>r.json()),
-      fetch('/api/log').then(r=>r.json()),
-      fetch('/api/sessions').then(r=>r.json()),
-    ])
-    setPlayers(pr.players||[]); setActiveSession(pr.activeSession)
-    setDrinks(dr.drinks||[]); setMyLog(lr.log||[])
-    setSessions(sr.sessions||[])
-    const me = pr.players?.find(p=>p.username===user.username)
-    if (me?.bac_info) { setBacInfo(me.bac_info); setBacForm(me.bac_info) }
-    if (me?.avatar) setAvatar(me.avatar)
-    if (pr.activeSession) {
-      fetch('/api/photos?sessionId='+pr.activeSession.id).then(r=>r.json()).then(d=>setSessionPhotos(d.photos||[]))
-    }
+    try {
+      const [pr, dr, lr, sr] = await Promise.all([
+        fetch('/api/players').then(r => { if (!r.ok) throw new Error(); return r.json() }),
+        fetch('/api/drinks').then(r => { if (!r.ok) throw new Error(); return r.json() }),
+        fetch('/api/log').then(r => { if (!r.ok) throw new Error(); return r.json() }),
+        fetch('/api/sessions').then(r => { if (!r.ok) throw new Error(); return r.json() }),
+      ])
+      setLoadError('')
+      setPlayers(pr.players||[]); setActiveSession(pr.activeSession)
+      setDrinks(dr.drinks||[]); setMyLog(lr.log||[])
+      setSessions(sr.sessions||[])
+      const me = pr.players?.find(p=>p.username===user.username)
+      if (me?.bac_info) { setBacInfo(me.bac_info); setBacForm(me.bac_info) }
+      if (me?.avatar) setAvatar(me.avatar)
+      if (pr.activeSession) {
+        fetch('/api/photos?sessionId='+pr.activeSession.id).then(r=>r.json()).then(d=>setSessionPhotos(d.photos||[]))
+      }
+    } catch { setLoadError('Errore nel caricamento dati') }
   }, [user.username])
   useEffect(() => { load(); const i = setInterval(load, 15000); return () => clearInterval(i) }, [load])
   useEffect(() => { const i = setInterval(() => setNow(Date.now()), 10000); return () => clearInterval(i) }, [])
   async function addDrink(drink) {
-    if (!activeSession) return alert('Nessuna serata attiva!')
+    if (!activeSession) return
     setConfirmDrink(drink); return
     //await fetch('/api/log', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({drink, foodContext:food}) })
     load()
@@ -183,8 +183,10 @@ function PlayerView({ user, onLogout }) {
     load()
   }
   async function saveBac() {
-    if (!bacForm.weight||!bacForm.height||!bacForm.age) return
-    const info = { weight:parseFloat(bacForm.weight), height:parseFloat(bacForm.height), age:parseInt(bacForm.age), sex:bacForm.sex }
+    const w = parseFloat(bacForm.weight), h = parseFloat(bacForm.height), a = parseInt(bacForm.age)
+    if (!w || !h || !a || w <= 0 || h <= 0 || a <= 0) { setBacError('Inserisci valori validi e maggiori di zero'); return }
+    setBacError('')
+    const info = { weight: w, height: h, age: a, sex: bacForm.sex }
     await fetch('/api/bac', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(info) })
     setBacInfo(info); setBacSaved(true); setTimeout(()=>setBacSaved(false),2000); load()
   }
@@ -217,6 +219,7 @@ function PlayerView({ user, onLogout }) {
         <div><h1 style={{ fontSize:'2rem', color:'#F5C518', lineHeight:1 }}>DRINKING</h1><h1 style={{ fontSize:'2rem', lineHeight:1 }}>LEADERBOARD</h1></div>
         <button onClick={logout} style={s.btn('#2e2e2e','#888',{fontSize:'0.8rem',padding:'0.4rem 0.8rem'})}>Esci</button>
       </div>
+      {loadError && <div style={{ margin:'0 1rem 0.5rem', background:'#220000', border:'1px solid #e03c3c', borderRadius:'8px', padding:'0.5rem 1rem', color:'#e03c3c', fontSize:'0.85rem' }}>{loadError}</div>}
       {activeSession
         ? <div style={{ margin:'0 1rem 1rem', background:'#0d2200', border:'1px solid #3ce08a', borderRadius:'8px', padding:'0.5rem 1rem', display:'flex', gap:'0.5rem', alignItems:'center' }}><span style={{ color:'#3ce08a', fontSize:'0.75rem' }}>● LIVE</span><span style={{ color:'#f0f0f0', fontSize:'0.85rem' }}>{activeSession.name}</span></div>
         : <div style={{ margin:'0 1rem 1rem', background:'#1a1a1a', border:'1px solid #2e2e2e', borderRadius:'8px', padding:'0.5rem 1rem' }}><span style={{ color:'#888', fontSize:'0.85rem' }}>Nessuna serata attiva</span></div>
@@ -402,6 +405,7 @@ function PlayerView({ user, onLogout }) {
                 <div><label style={s.label}>Peso (kg)</label><input style={s.input} type="number" value={bacForm.weight} placeholder="es. 75" onChange={e=>setBacForm(f=>({...f,weight:e.target.value}))} /></div>
                 <div><label style={s.label}>Altezza (cm)</label><input style={s.input} type="number" value={bacForm.height} placeholder="es. 178" onChange={e=>setBacForm(f=>({...f,height:e.target.value}))} /></div>
                 <div><label style={s.label}>Eta</label><input style={s.input} type="number" value={bacForm.age} placeholder="es. 25" onChange={e=>setBacForm(f=>({...f,age:e.target.value}))} /></div>
+                {bacError && <p style={{ color:'#e03c3c', fontSize:'0.8rem', margin:'0' }}>{bacError}</p>}
                 <button onClick={saveBac} style={s.btn('#F5C518','#000',{width:'100%',padding:'0.8rem',fontSize:'1.2rem'})}>{bacSaved?'Salvato!':'Salva dati BAC'}</button>
               </div>
             </div>
@@ -423,51 +427,90 @@ function AdminPanel({ onLogout }) {
   const [newDrink, setNewDrink] = useState({ name:'', emoji:'🍺', points:'', ml:'', abv:'' })
   const [newUser, setNewUser] = useState({ username:'', password:'' })
   const [msg, setMsg] = useState('')
+  const [confirmAction, setConfirmAction] = useState(null)
+  const [loadingAdmin, setLoadingAdmin] = useState(false)
   const load = useCallback(async () => {
-    const [sr, pr, dr] = await Promise.all([
-      fetch('/api/sessions').then(r=>r.json()),
-      fetch('/api/admin').then(r=>r.json()),
-      fetch('/api/drinks').then(r=>r.json()),
-    ])
-    setSessions(sr.sessions||[]); setActiveSession(sr.active)
-    setPlayers(pr.users||[]); setDrinks(dr.drinks||[])
+    try {
+      const [sr, pr, dr] = await Promise.all([
+        fetch('/api/sessions').then(r => { if (!r.ok) throw new Error(); return r.json() }),
+        fetch('/api/admin').then(r => { if (!r.ok) throw new Error(); return r.json() }),
+        fetch('/api/drinks').then(r => { if (!r.ok) throw new Error(); return r.json() }),
+      ])
+      setSessions(sr.sessions||[]); setActiveSession(sr.active)
+      setPlayers(pr.users||[]); setDrinks(dr.drinks||[])
+    } catch { showMsg('Errore nel caricamento dati') }
   }, [])
   useEffect(() => { load() }, [load])
   function showMsg(m) { setMsg(m); setTimeout(()=>setMsg(''),3000) }
   async function createSession() {
     if (!newSessionName) return
+    setLoadingAdmin(true)
     await fetch('/api/sessions', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name:newSessionName}) })
     setNewSessionName(''); showMsg('Serata creata!'); load()
+    setLoadingAdmin(false)
   }
-  async function deleteSession(id) { if (!window.confirm("Eliminare la serata e tutti i drink?")) return; await fetch("/api/sessions", { method:"DELETE", headers:{"Content-Type":"application/json"}, body: JSON.stringify({sessionId:id, action:"delete"}) }); showMsg("Serata eliminata"); load(); } async function closeSession(id) {
-    if (!confirm('Chiudere la serata?')) return
-    await fetch('/api/sessions', { method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({sessionId:id}) })
-    showMsg('Serata chiusa'); load()
+  function deleteSession(id) {
+    setConfirmAction({ message: 'Eliminare la serata e tutti i drink?', onConfirm: async () => {
+      setLoadingAdmin(true)
+      await fetch('/api/sessions', { method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({sessionId:id, action:'delete'}) })
+      showMsg('Serata eliminata'); load()
+      setLoadingAdmin(false)
+    }})
+  }
+  function closeSession(id) {
+    setConfirmAction({ message: 'Chiudere la serata?', onConfirm: async () => {
+      setLoadingAdmin(true)
+      await fetch('/api/sessions', { method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({sessionId:id}) })
+      showMsg('Serata chiusa'); load()
+      setLoadingAdmin(false)
+    }})
   }
   async function addDrink() {
     if (!newDrink.name||!newDrink.points||!newDrink.ml||!newDrink.abv) return showMsg('Compila tutti i campi')
+    setLoadingAdmin(true)
     await fetch('/api/drinks', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({...newDrink,points:parseInt(newDrink.points),ml:parseFloat(newDrink.ml),abv:parseFloat(newDrink.abv)}) })
     setNewDrink({name:'',emoji:'🍺',points:'',ml:'',abv:''}); showMsg('Drink aggiunto!'); load()
+    setLoadingAdmin(false)
   }
-  async function removeDrink(id) {
-    if (!confirm('Eliminare?')) return
-    await fetch('/api/drinks', { method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({drinkId:id}) })
-    load()
+  function removeDrink(id) {
+    setConfirmAction({ message: 'Eliminare questo drink dal catalogo?', onConfirm: async () => {
+      setLoadingAdmin(true)
+      await fetch('/api/drinks', { method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({drinkId:id}) })
+      load()
+      setLoadingAdmin(false)
+    }})
   }
   async function addUser() {
     if (!newUser.username||!newUser.password) return
+    setLoadingAdmin(true)
     const res = await fetch('/api/admin', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(newUser) })
     const d = await res.json()
     if (res.ok) { showMsg(d.user.username+' aggiunto'); setNewUser({username:'',password:''}); load() } else showMsg(d.error)
+    setLoadingAdmin(false)
   }
-  async function removeUser(username) {
-    if (!confirm('Eliminare '+username+'?')) return
-    await fetch('/api/admin', { method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username}) })
-    load()
+  function removeUser(username) {
+    setConfirmAction({ message: 'Eliminare ' + username + '?', onConfirm: async () => {
+      setLoadingAdmin(true)
+      await fetch('/api/admin', { method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username}) })
+      load()
+      setLoadingAdmin(false)
+    }})
   }
   async function logout() { await fetch('/api/auth/logout',{method:'POST'}); onLogout() }
   const playerList = players.filter(u=>u.role!=='admin')
   return (
+    <>
+    {confirmAction && (
+      <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.85)',zIndex:999,display:'flex',alignItems:'center',justifyContent:'center',padding:'1rem'}}>
+        <div style={{background:'#1a1a1a',border:'1px solid #e03c3c',borderRadius:'16px',padding:'2rem',maxWidth:320,width:'100%',textAlign:'center'}}>
+          <p style={{color:'#f0f0f0',marginBottom:'1.5rem',fontSize:'1rem'}}>{confirmAction.message}</p>
+          <div style={{display:'flex',gap:'0.75rem'}}>
+            <button onClick={()=>setConfirmAction(null)} style={{flex:1,background:'#2e2e2e',border:'none',borderRadius:'8px',padding:'0.8rem',color:'#888',fontFamily:'Bebas Neue',fontSize:'1.2rem',cursor:'pointer'}}>Annulla</button>
+            <button onClick={()=>{ confirmAction.onConfirm(); setConfirmAction(null) }} style={{flex:1,background:'#e03c3c',border:'none',borderRadius:'8px',padding:'0.8rem',color:'#fff',fontFamily:'Bebas Neue',fontSize:'1.2rem',cursor:'pointer'}}>Conferma</button>
+          </div>
+        </div>
+      </div>
+    )}
     <main style={{ maxWidth:500, margin:'0 auto', padding:'2rem 1rem 5rem' }}>
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'1.5rem' }}>
         <div><h1 style={{ fontSize:'2.5rem', color:'#F5C518', lineHeight:1 }}>ADMIN</h1>{activeSession&&<span style={{ color:'#3ce08a', fontSize:'0.8rem' }}>● {activeSession.name}</span>}</div>
@@ -484,7 +527,7 @@ function AdminPanel({ onLogout }) {
           <div style={s.card()}><h3 style={{ fontFamily:'Bebas Neue', fontSize:'1.3rem', color:'#F5C518', marginBottom:'0.5rem' }}>NUOVA SERATA</h3>
             <p style={{ color:'#888', fontSize:'0.8rem', marginBottom:'0.75rem' }}>La precedente si chiude automaticamente</p>
             <input style={{ ...s.input, marginBottom:'0.75rem' }} value={newSessionName} placeholder="es. Venerdi 6 Giugno" onChange={e=>setNewSessionName(e.target.value)} onKeyDown={e=>e.key==='Enter'&&createSession()} />
-            <button onClick={createSession} style={s.btn('#F5C518','#000',{width:'100%',padding:'0.7rem'})}>Apri Serata</button>
+            <button onClick={createSession} disabled={loadingAdmin} style={s.btn('#F5C518','#000',{width:'100%',padding:'0.7rem',opacity:loadingAdmin?0.5:1})}>Apri Serata</button>
           </div>
           <h3 style={{ fontFamily:'Bebas Neue', fontSize:'1.3rem', color:'#888' }}>SERATE</h3>
           {[...sessions].reverse().map(sess=>(
@@ -492,7 +535,7 @@ function AdminPanel({ onLogout }) {
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
                 <div><div style={{ fontFamily:'Bebas Neue', fontSize:'1.2rem', color:sess.active?'#F5C518':'#f0f0f0' }}>{sess.name}</div>
                 <div style={{ color:'#888', fontSize:'0.75rem' }}>Aperta: {fmtDate(sess.createdAt)} {fmtTime(sess.createdAt)}{sess.closedAt ? ' · Chiusa: '+fmtDate(sess.closedAt)+' '+fmtTime(sess.closedAt) : ''}</div><div style={{marginTop:'0.25rem'}}><span style={{background:sess.active?'#3ce08a22':'#2e2e2e',color:sess.active?'#3ce08a':'#888',fontSize:'0.7rem',padding:'0.15rem 0.5rem',borderRadius:'4px'}}>{sess.active?'● Aperta':'✕ Chiusa'}</span></div></div>
-                {sess.active?<button onClick={()=>closeSession(sess.id)} style={s.btn('#2e2e2e','#e03c3c',{fontSize:'0.8rem'})}>Chiudi</button>:<button onClick={()=>deleteSession(sess.id)} style={s.btn('#2e2e2e','#e03c3c',{fontSize:'0.8rem',opacity:0.6})}>Elimina</button>}
+                {sess.active?<button onClick={()=>closeSession(sess.id)} disabled={loadingAdmin} style={s.btn('#2e2e2e','#e03c3c',{fontSize:'0.8rem',opacity:loadingAdmin?0.5:1})}>Chiudi</button>:<button onClick={()=>deleteSession(sess.id)} disabled={loadingAdmin} style={s.btn('#2e2e2e','#e03c3c',{fontSize:'0.8rem',opacity:loadingAdmin?0.3:0.6})}>Elimina</button>}
               </div>
             </div>
           ))}
@@ -505,7 +548,7 @@ function AdminPanel({ onLogout }) {
               <div style={{ display:'flex', alignItems:'center', gap:'1rem' }}>
                 <span style={{ fontFamily:'Bebas Neue', fontSize:'1.2rem', color:'#888', width:24 }}>{i+1}</span>
                 <div style={{ flex:1 }}><div style={{ fontFamily:'Bebas Neue', fontSize:'1.2rem' }}>{player.username}</div></div>
-                <button onClick={()=>removeUser(player.username)} style={s.btn('#2e2e2e','#e03c3c',{padding:'0.3rem 0.6rem',fontSize:'0.8rem'})}>X</button>
+                <button onClick={()=>removeUser(player.username)} disabled={loadingAdmin} style={s.btn('#2e2e2e','#e03c3c',{padding:'0.3rem 0.6rem',fontSize:'0.8rem',opacity:loadingAdmin?0.5:1})}>X</button>
               </div>
             </div>
           ))}
@@ -524,14 +567,14 @@ function AdminPanel({ onLogout }) {
                 <input style={{ ...s.input, flex:1 }} type="number" value={newDrink.ml} placeholder="ml" onChange={e=>setNewDrink(d=>({...d,ml:e.target.value}))} />
                 <input style={{ ...s.input, flex:1 }} type="number" value={newDrink.abv} placeholder="% alcol" onChange={e=>setNewDrink(d=>({...d,abv:e.target.value}))} />
               </div>
-              <button onClick={addDrink} style={s.btn('#F5C518','#000',{width:'100%',padding:'0.7rem'})}>Aggiungi</button>
+              <button onClick={addDrink} disabled={loadingAdmin} style={s.btn('#F5C518','#000',{width:'100%',padding:'0.7rem',opacity:loadingAdmin?0.5:1})}>Aggiungi</button>
             </div>
           </div>
           {drinks.map(drink=>(
             <div key={drink.id} style={{ ...s.card(), display:'flex', alignItems:'center', gap:'1rem' }}>
               <span style={{ fontSize:'1.5rem' }}>{drink.emoji}</span>
               <div style={{ flex:1 }}><div style={{ fontFamily:'Bebas Neue', fontSize:'1.1rem' }}>{drink.name}</div><div style={{ color:'#888', fontSize:'0.75rem' }}>{drink.ml}ml / {drink.abv}% / {drink.points}pt</div></div>
-              <button onClick={()=>removeDrink(drink.id)} style={s.btn('#2e2e2e','#e03c3c',{padding:'0.3rem 0.6rem',fontSize:'0.8rem'})}>X</button>
+              <button onClick={()=>removeDrink(drink.id)} disabled={loadingAdmin} style={s.btn('#2e2e2e','#e03c3c',{padding:'0.3rem 0.6rem',fontSize:'0.8rem',opacity:loadingAdmin?0.5:1})}>X</button>
             </div>
           ))}
         </div>
@@ -593,10 +636,11 @@ function AdminPanel({ onLogout }) {
         <div style={{ display:'flex', flexDirection:'column', gap:'1rem' }}>
           <div><label style={s.label}>Username</label><input style={s.input} value={newUser.username} placeholder="es. mario" onChange={e=>setNewUser(p=>({...p,username:e.target.value}))} /></div>
           <div><label style={s.label}>Password</label><input style={s.input} type="password" value={newUser.password} placeholder="..." onChange={e=>setNewUser(p=>({...p,password:e.target.value}))} /></div>
-          <button onClick={addUser} style={s.btn('#F5C518','#000',{width:'100%',padding:'0.8rem',fontSize:'1.3rem'})}>Aggiungi Giocatore</button>
+          <button onClick={addUser} disabled={loadingAdmin} style={s.btn('#F5C518','#000',{width:'100%',padding:'0.8rem',fontSize:'1.3rem',opacity:loadingAdmin?0.5:1})}>Aggiungi Giocatore</button>
         </div>
       )}
     </main>
+    </>
   )
 }
 export default function Home() {

@@ -4,9 +4,10 @@ import { getUser } from '@/lib/db'
 import { signToken } from '@/lib/auth'
 export async function POST(request) {
   try {
-    const { username, password } = await request.json()
+    const { username: rawUsername, password } = await request.json()
+    const username = rawUsername?.trim().toLowerCase()
     if (!username || !password) return NextResponse.json({ error: 'Campi mancanti' }, { status: 400 })
-    const user = await getUser(username.toLowerCase())
+    const user = await getUser(username)
     if (!user) return NextResponse.json({ error: 'Credenziali non valide' }, { status: 401 })
     const valid = await bcrypt.compare(password, user.password)
     if (!valid) return NextResponse.json({ error: 'Credenziali non valide' }, { status: 401 })
