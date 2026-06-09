@@ -38,3 +38,19 @@ h1, h2, h3 { font-family: 'Bebas Neue', sans-serif; letter-spacing: 0.05em; }
 .rank-1 { color: var(--gold); }
 .rank-2 { color: #C0C0C0; }
 .rank-3 { color: #CD7F32; }
+
+@keyframes podiumRise {
+  from { transform: scaleY(0); }
+  to   { transform: scaleY(1); }
+}
+
+@keyframes podiumDrop {
+  0%   { opacity: 0; transform: translateY(-40px); }
+  60%  { opacity: 1; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes confettiFall {
+  from { transform: translateY(-10vh) rotate(0deg); }
+  to   { transform: translateY(110vh) rotate(720deg); }
+}

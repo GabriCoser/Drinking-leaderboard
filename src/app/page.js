@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { CATEGORIES } from '@/lib/drinks'
+import Podium from '@/components/Podium'
 const MEDAL = ['🥇', '🥈', '🥉']
 const s = {
   btn: (bg, color = '#fff', extra = {}) => ({ background: bg, color, border: 'none', borderRadius: '8px', padding: '0.5rem 1rem', cursor: 'pointer', fontFamily: 'Bebas Neue', fontSize: '1.1rem', letterSpacing: '0.05em', ...extra }),
@@ -175,6 +176,7 @@ function PlayerView({ user, onLogout }) {
   const [note, setNote] = useState('')
   const [challengeTarget, setChallengeTarget] = useState(null)
   const [openCats, setOpenCats] = useState({ birra: true })
+  const [finale, setFinale] = useState(null)
   const prevRef = useRef(null)
   const pushToast = useCallback(text => {
     const id = Date.now() + Math.random()
@@ -207,6 +209,16 @@ function PlayerView({ user, onLogout }) {
       const rank = (pr.players||[]).findIndex(p=>p.username===user.username)+1
       const prev = prevRef.current
       const parts = pr.activeSession?.participants || []
+      // serata appena chiusa: mostra il podio finale
+      if (prev?.activeS && !pr.activeSession) {
+        const sid = prev.activeS.id
+        const inSess = p => prev.activeS.participants ? prev.activeS.participants.includes(p.username) : (p.sessionLog||[]).some(e=>e.sessionId===sid)
+        const standings = (pr.players||[]).filter(inSess).map(p=>{
+          const l=(p.sessionLog||[]).filter(e=>e.sessionId===sid)
+          return { username:p.username, avatar:p.avatar, points:l.reduce((s,e)=>s+e.points,0), drinks:l.length }
+        }).sort((a,b)=>b.points-a.points)
+        if (standings.length) setFinale({ name: prev.activeS.name, standings })
+      }
       if (prev) {
         allLog.filter(e=>e.username!==user.username && !prev.logIds.has(e.id)).slice(0,3)
           .forEach(e=>pushToast(`${e.emoji} ${e.username} ha aggiunto ${e.name}`))
@@ -225,7 +237,7 @@ function PlayerView({ user, onLogout }) {
           }
         })
       }
-      prevRef.current = { logIds:new Set(allLog.map(e=>e.id)), rank, parts:new Set(parts), challenges:Object.fromEntries((cr.challenges||[]).map(c=>[c.id,c.status])) }
+      prevRef.current = { logIds:new Set(allLog.map(e=>e.id)), rank, parts:new Set(parts), challenges:Object.fromEntries((cr.challenges||[]).map(c=>[c.id,c.status])), activeS: pr.activeSession ? { id: pr.activeSession.id, name: pr.activeSession.name, participants: pr.activeSession.participants } : null }
     } catch { setLoadError('Errore nel caricamento dati') }
   }, [user.username, pushToast])
   useEffect(() => { load(); const i = setInterval(load, 15000); return () => clearInterval(i) }, [load])
@@ -304,6 +316,7 @@ function PlayerView({ user, onLogout }) {
   const sessPoints = u => players.find(p=>p.username===u)?.sessionLog?.filter(e=>activeSession&&e.sessionId===activeSession.id).reduce((s,e)=>s+e.points,0) ?? 0
   return (
     <>
+    {finale && <Podium sessionName={finale.name} standings={finale.standings} onClose={()=>setFinale(null)} />}
     <div style={{position:'fixed',top:'0.75rem',left:'50%',transform:'translateX(-50%)',zIndex:1001,display:'flex',flexDirection:'column',gap:'0.4rem',width:'90%',maxWidth:440,pointerEvents:'none'}}>
       {toasts.map(t=><div key={t.id} style={{background:'#1a1a1a',border:'1px solid #F5C518',borderRadius:'10px',padding:'0.6rem 1rem',color:'#f0f0f0',fontSize:'0.85rem',boxShadow:'0 4px 12px rgba(0,0,0,0.5)'}}>{t.text}</div>)}
     </div>

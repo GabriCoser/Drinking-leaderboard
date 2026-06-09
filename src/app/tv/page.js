@@ -1,18 +1,34 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import Podium from '@/components/Podium'
 const MEDAL = ['🥇', '🥈', '🥉']
 
 export default function TvPage() {
   const [players, setPlayers] = useState([])
   const [activeSession, setActiveSession] = useState(null)
   const [now, setNow] = useState(Date.now())
+  const [finale, setFinale] = useState(null)
+  const prevActive = useRef(null)
   useEffect(() => {
     async function load() {
       try {
         const d = await fetch('/api/players').then(r => r.json())
         setPlayers(d.players || [])
         setActiveSession(d.activeSession)
+        const prev = prevActive.current
+        if (prev && !d.activeSession) {
+          // serata appena chiusa: podio finale finché non riparte una serata
+          const sid = prev.id
+          const inSess = p => prev.participants ? prev.participants.includes(p.username) : (p.sessionLog || []).some(e => e.sessionId === sid)
+          const standings = (d.players || []).filter(inSess).map(p => {
+            const l = (p.sessionLog || []).filter(e => e.sessionId === sid)
+            return { username: p.username, avatar: p.avatar, points: l.reduce((s, e) => s + e.points, 0), drinks: l.length }
+          }).sort((a, b) => b.points - a.points)
+          if (standings.length) setFinale({ name: prev.name, standings })
+        }
+        if (d.activeSession) setFinale(null)
+        prevActive.current = d.activeSession ? { id: d.activeSession.id, name: d.activeSession.name, participants: d.activeSession.participants } : null
       } catch {}
     }
     load()
@@ -41,6 +57,7 @@ export default function TvPage() {
   )
   return (
     <main style={{ maxWidth: 900, margin: '0 auto', padding: '2rem 1.5rem' }}>
+      {finale && <Podium big sessionName={finale.name} standings={finale.standings} onClose={() => setFinale(null)} />}
       <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
         <h1 style={{ fontSize: '3.5rem', lineHeight: 1 }}><span style={{ color: '#F5C518' }}>DRINKING</span> LEADERBOARD</h1>
         {activeSession
