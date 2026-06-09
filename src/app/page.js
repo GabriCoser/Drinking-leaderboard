@@ -177,6 +177,7 @@ function PlayerView({ user, onLogout }) {
   const [challengeTarget, setChallengeTarget] = useState(null)
   const [openCats, setOpenCats] = useState({ birra: true })
   const [finale, setFinale] = useState(null)
+  const [boardSel, setBoardSel] = useState(undefined) // undefined = auto (serata attiva se c'è, altrimenti generale)
   const prevRef = useRef(null)
   const pushToast = useCallback(text => {
     const id = Date.now() + Math.random()
@@ -304,11 +305,12 @@ function PlayerView({ user, onLogout }) {
   const hasRoster = Array.isArray(activeSession?.participants)
   const joined = !!activeSession && (!hasRoster || activeSession.participants.includes(user.username))
   const canDrink = !!activeSession && joined
+  const boardSessionId = boardSel===undefined ? (activeSession?.id ?? null) : (boardSel==='' ? null : parseInt(boardSel))
   const boardPlayers = (() => {
-    if (!selectedSession) return players
-    const sess = sessions.find(ss=>ss.id===selectedSession)
-    const inSess = p => sess?.participants ? sess.participants.includes(p.username) : (p.sessionLog||[]).some(e=>e.sessionId===selectedSession)
-    const sp = p => (p.sessionLog||[]).filter(e=>e.sessionId===selectedSession).reduce((s,e)=>s+e.points,0)
+    if (!boardSessionId) return players
+    const sess = sessions.find(ss=>ss.id===boardSessionId)
+    const inSess = p => sess?.participants ? sess.participants.includes(p.username) : (p.sessionLog||[]).some(e=>e.sessionId===boardSessionId)
+    const sp = p => (p.sessionLog||[]).filter(e=>e.sessionId===boardSessionId).reduce((s,e)=>s+e.points,0)
     return players.filter(inSess).sort((a,b)=>sp(b)-sp(a))
   })()
   const myChallenges = activeSession ? challenges.filter(c=>c.sessionId===activeSession.id && (c.challenger===user.username||c.challenged===user.username) && c.status!=='declined') : []
@@ -534,18 +536,18 @@ function PlayerView({ user, onLogout }) {
         {tab==='board' && (
           <div style={{display:'flex',flexDirection:'column',gap:'0.75rem'}}>
             <div><label style={s.label}>Visualizza</label>
-              <select value={selectedSession||''} onChange={e=>setSelectedSession(e.target.value?parseInt(e.target.value):null)} style={{...s.input,appearance:'none'}}>
+              <select value={boardSessionId??''} onChange={e=>setBoardSel(e.target.value)} style={{...s.input,appearance:'none'}}>
                 <option value="">Classifica generale</option>
                 {sessions.map(ss=><option key={ss.id} value={ss.id}>{ss.name}{ss.active?' (in corso)':''}</option>)}
               </select>
             </div>
             {boardPlayers.length===0 && <p style={{color:'#888',textAlign:'center',padding:'2rem'}}>Nessun iscritto a questa serata</p>}
             {boardPlayers.map((player,i)=>{
-              const pts=selectedSession?(player.sessionLog||[]).filter(e=>e.sessionId===selectedSession).reduce((s,e)=>s+e.points,0):player.points
-              const dks=selectedSession?(player.sessionLog||[]).filter(e=>e.sessionId===selectedSession).length:player.drinks
+              const pts=boardSessionId?(player.sessionLog||[]).filter(e=>e.sessionId===boardSessionId).reduce((s,e)=>s+e.points,0):player.points
+              const dks=boardSessionId?(player.sessionLog||[]).filter(e=>e.sessionId===boardSessionId).length:player.drinks
               const isMe=player.username===user.username
-              const pBac=player.bac_info?calcBAC(selectedSession?(player.sessionLog||[]).filter(e=>e.sessionId===selectedSession):(player.sessionLog||[]),player.bac_info,now):null
-              const pLog=selectedSession?(player.sessionLog||[]).filter(e=>e.sessionId===selectedSession):(player.sessionLog||[])
+              const pBac=player.bac_info?calcBAC(boardSessionId?(player.sessionLog||[]).filter(e=>e.sessionId===boardSessionId):(player.sessionLog||[]),player.bac_info,now):null
+              const pLog=boardSessionId?(player.sessionLog||[]).filter(e=>e.sessionId===boardSessionId):(player.sessionLog||[])
               const open=viewingPlayer===player.username
               return <div key={player.username} style={s.card(isMe,{border:isMe?'1px solid #F5C518':'1px solid #2e2e2e'})}>
                 <div style={{display:'flex',alignItems:'center',gap:'1rem',cursor:'pointer'}} onClick={()=>setViewingPlayer(open?null:player.username)}>
