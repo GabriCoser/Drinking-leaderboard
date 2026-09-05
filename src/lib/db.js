@@ -4,7 +4,9 @@ let _client = null
 function getRedis() {
   if (!_client) {
     if (!process.env.REDIS_URL) throw new Error('REDIS_URL environment variable is not set')
-    _client = new Redis(process.env.REDIS_URL, { maxRetriesPerRequest: 3, connectTimeout: 5000 })
+    
+  const isTLS = process.env.REDIS_URL.startsWith('rediss://')
+  _client = new Redis(process.env.REDIS_URL, { maxRetriesPerRequest: 3, connectTimeout: 5000, ...(isTLS ? { tls: { rejectUnauthorized: false } } : {}) })
     _client.on('error', (err) => console.error('[Redis] connection error:', err.message))
   }
   return _client
