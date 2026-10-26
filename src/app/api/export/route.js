@@ -12,7 +12,7 @@ export async function GET(request) {
     if (!sessionId) return NextResponse.json({ error: 'sessionId mancante' }, { status: 400 })
     const sessions = await getSessions()
     const sess = sessions.find(s => s.id === sessionId)
-    if (!sess) return NextResponse.json({ error: 'Serata non trovata' }, { status: 404 })
+    if (!sess) return NextResponse.json({ error: 'Evento non trovato' }, { status: 404 })
     const log = (await getDrinkLog()).filter(e => e.sessionId === sessionId).sort((a, b) => a.timestamp - b.timestamp)
     const safeName = sess.name.replace(/[^a-zA-Z0-9]+/g, '_')
     if (format === 'json') {

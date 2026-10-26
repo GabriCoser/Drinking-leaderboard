@@ -8,19 +8,22 @@ export async function POST(request) {
     const session = await getSession()
     if (!session) return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 })
     const { image, type, sessionId } = await request.json()
+    if (!['avatar', 'session'].includes(type)) return NextResponse.json({ error: 'Tipo non valido' }, { status: 400 })
+    if (type === 'session' && !sessionId) return NextResponse.json({ error: 'Evento mancante' }, { status: 400 })
     if (!image) return NextResponse.json({ error: 'Immagine mancante' }, { status: 400 })
     if (!image.startsWith('data:image/')) return NextResponse.json({ error: 'Formato non valido' }, { status: 400 })
     // image è un dataURL: data:image/jpeg;base64,xxxx
     const base64 = image.split(',')[1]
     const buffer = Buffer.from(base64, 'base64')
     if (buffer.length > 4 * 1024 * 1024) return NextResponse.json({ error: 'Immagine troppo grande' }, { status: 413 })
-    const filename = `${type}/${session.username}_${Date.now()}.jpg`
+    const safeName = session.username.replace(/[^\p{L}\p{N}_-]+/gu, '_')
+    const filename = `${type}/${safeName}_${Date.now()}.jpg`
     const blob = await put(filename, buffer, { access: 'public', contentType: 'image/jpeg' })
     if (type === 'avatar') {
       await updateUserAvatar(session.username, blob.url)
     }
-    if (type === 'session' && sessionId) {
-      await addSessionPhoto(sessionId, { url: blob.url, username: session.username, timestamp: Date.now() })
+    if (type === 'session') {
+      await addSessionPhoto(String(sessionId), { url: blob.url, username: session.username, timestamp: Date.now() })
     }
     return NextResponse.json({ url: blob.url })
   } catch (e) {

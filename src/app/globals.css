@@ -1,18 +1,50 @@
+/* @import deve stare prima di ogni altra regola, altrimenti il browser lo ignora */
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Creepster&family=DM+Sans:wght@400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600&display=swap');
-
+/* Tema classico */
 :root {
-  --gold: #F5C518;
-  --gold-dim: #c9a014;
+  --accent: #F5C518;
+  --accent-dim: #c9a014;
+  --accent-ink: #000;
   --bg: #0d0d0d;
   --surface: #1a1a1a;
   --surface2: #242424;
   --border: #2e2e2e;
   --text: #f0f0f0;
   --muted: #888;
+  --faint: #555;
+  --ok: #3ce08a;
+  --danger: #e03c3c;
+  --hl-a: #1e1a00;
+  --hl-b: #2a2200;
+  --glow-a: rgba(245,197,24,0.07);
+  --glow-b: rgba(245,197,24,0.05);
+  --font-title: 'Bebas Neue', sans-serif;
+}
+
+/* Tema Halloween: zucca, viola e verde melma */
+:root[data-theme="halloween"] {
+  --accent: #ff7a1a;
+  --accent-dim: #c4560c;
+  --accent-ink: #1a0a00;
+  --bg: #0b0710;
+  --surface: #160e1e;
+  --surface2: #201529;
+  --border: #33224a;
+  --text: #f4ecdf;
+  --muted: #a493b4;
+  --faint: #66557a;
+  --ok: #8dff5a;
+  --danger: #ff4040;
+  --hl-a: #2b1204;
+  --hl-b: #3b1a06;
+  --glow-a: rgba(155,92,255,0.16);
+  --glow-b: rgba(255,122,26,0.10);
+  --font-title: 'Creepster', 'Bebas Neue', cursive;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -23,11 +55,17 @@ body {
   font-family: 'DM Sans', sans-serif;
   min-height: 100vh;
   background-image:
-    radial-gradient(ellipse at 20% 0%, rgba(245,197,24,0.07) 0%, transparent 60%),
-    radial-gradient(ellipse at 80% 100%, rgba(245,197,24,0.05) 0%, transparent 60%);
+    radial-gradient(ellipse at 20% 0%, var(--glow-a) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 100%, var(--glow-b) 0%, transparent 60%);
+  background-attachment: fixed;
+  transition: background-color 0.4s;
 }
 
 h1, h2, h3 { font-family: 'Bebas Neue', sans-serif; letter-spacing: 0.05em; }
+h1 { font-family: var(--font-title); }
+[data-theme="halloween"] h1 { letter-spacing: 0.04em; text-shadow: 0 0 18px color-mix(in srgb, var(--accent) 45%, transparent); }
+
+select option { background: var(--surface2); color: var(--text); }
 
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(16px); }
@@ -35,7 +73,7 @@ h1, h2, h3 { font-family: 'Bebas Neue', sans-serif; letter-spacing: 0.05em; }
 }
 
 .fade-up { animation: fadeUp 0.4s ease both; }
-.rank-1 { color: var(--gold); }
+.rank-1 { color: var(--accent); }
 .rank-2 { color: #C0C0C0; }
 .rank-3 { color: #CD7F32; }
 
@@ -53,4 +91,53 @@ h1, h2, h3 { font-family: 'Bebas Neue', sans-serif; letter-spacing: 0.05em; }
 @keyframes confettiFall {
   from { transform: translateY(-10vh) rotate(0deg); }
   to   { transform: translateY(110vh) rotate(720deg); }
+}
+
+/* ---------- Effetti Halloween ---------- */
+.hw-fx { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+.hw-moon { position: absolute; top: 4vh; right: 6vw; width: 70px; height: 70px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #fff6d6, #f2d27a 60%, #c99a3a); box-shadow: 0 0 40px 10px rgba(255,214,120,0.25); opacity: 0.55; }
+.hw-moon.blood { background: radial-gradient(circle at 35% 35%, #ffb3a0, #e0402a 60%, #7a1408); box-shadow: 0 0 50px 14px rgba(255,40,20,0.35); opacity: 0.8; }
+.hw-bat { position: absolute; font-size: 1.4rem; opacity: 0.55; animation: batFly linear infinite; }
+@keyframes batFly {
+  0%   { transform: translate(-10vw, 0) scale(0.8); }
+  25%  { transform: translate(25vw, -4vh) scale(1); }
+  50%  { transform: translate(55vw, 3vh) scale(0.85); }
+  75%  { transform: translate(85vw, -3vh) scale(1); }
+  100% { transform: translate(115vw, 0) scale(0.8); }
+}
+.hw-spider { position: absolute; top: 0; left: 8vw; display: flex; flex-direction: column; align-items: center; animation: spiderDrop 9s ease-in-out infinite; transform-origin: top center; }
+.hw-spider::before { content: ''; width: 1px; height: 90px; background: linear-gradient(var(--muted), transparent 140%); opacity: 0.5; }
+@keyframes spiderDrop { 0%, 100% { transform: translateY(-60px); } 50% { transform: translateY(0); } }
+.hw-fog { position: absolute; left: -10%; right: -10%; bottom: -40px; height: 160px; background: radial-gradient(ellipse at 30% 60%, rgba(180,160,220,0.10), transparent 60%), radial-gradient(ellipse at 75% 70%, rgba(180,160,220,0.08), transparent 60%); filter: blur(6px); animation: fogDrift 14s ease-in-out infinite alternate; }
+@keyframes fogDrift { from { transform: translateX(-3%); } to { transform: translateX(3%); } }
+.hw-content { position: relative; z-index: 1; }
+
+@media (max-width: 600px) {
+  .hw-moon { width: 44px; height: 44px; top: auto; bottom: 14vh; right: 5vw; opacity: 0.35; }
+}
+
+@keyframes pumpkinBob {
+  0%, 100% { transform: translateY(0) rotate(-6deg); }
+  50% { transform: translateY(-10px) rotate(6deg); }
+}
+@keyframes booFly {
+  0%   { transform: translate(-50%, 40vh) scale(0.3); opacity: 0; }
+  20%  { opacity: 1; }
+  60%  { transform: translate(-50%, -5vh) scale(1.6); opacity: 1; }
+  100% { transform: translate(-50%, -60vh) scale(0.6); opacity: 0; }
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px) rotate(-1deg); }
+  40% { transform: translateX(6px) rotate(1deg); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}
+@keyframes flicker {
+  0%, 100% { opacity: 1; } 45% { opacity: 1; } 50% { opacity: 0.55; } 55% { opacity: 1; } 80% { opacity: 0.8; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hw-bat, .hw-spider, .hw-fog { animation: none; }
+  .hw-bat { display: none; }
 }

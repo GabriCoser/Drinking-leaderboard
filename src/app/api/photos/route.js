@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { del } from '@vercel/blob'
-import { getSessionPhotosMap, setSessionPhotosMap, togglePhotoReaction } from '@/lib/db'
+import { getSessionPhotosMap, removeSessionPhoto, togglePhotoReaction } from '@/lib/db'
 
 export async function GET(request) {
   try {
@@ -29,15 +29,8 @@ export async function DELETE(request) {
     const session = await getSession()
     if (!session) return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 })
     const { url, sessionId } = await request.json()
-    const parsed = await getSessionPhotosMap()
-    if (parsed[sessionId]) {
-      const photo = parsed[sessionId].find(p => p.url === url)
-      if (photo && (photo.username === session.username || session.role === 'admin')) {
-        parsed[sessionId] = parsed[sessionId].filter(p => p.url !== url)
-        await setSessionPhotosMap(parsed)
-        await del(url)
-      }
-    }
+    const removed = await removeSessionPhoto(sessionId, url, session.username, session.role === 'admin')
+    if (removed) await del(url).catch(e => console.error('Blob delete error:', e.message))
     return NextResponse.json({ success: true })
   } catch { return NextResponse.json({ error: 'Errore server' }, { status: 500 }) }
 }

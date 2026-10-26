@@ -1,19 +1,16 @@
 import { NextResponse } from 'next/server'
-import bcrypt from 'bcryptjs'
-import { getUser } from '@/lib/db'
-import { signToken } from '@/lib/auth'
+import { ensurePlayer, getActiveSession, setSessionParticipation } from '@/lib/db'
+import { normalizeName, setSessionCookie } from '@/lib/auth'
+// Accesso giocatori: basta il nome. Se il nome è nuovo crea il giocatore,
+// altrimenti ritrova i suoi drink. Se c'è un evento attivo si viene iscritti subito.
 export async function POST(request) {
   try {
-    const { username: rawUsername, password } = await request.json()
-    const username = rawUsername?.trim().toLowerCase()
-    if (!username || !password) return NextResponse.json({ error: 'Campi mancanti' }, { status: 400 })
-    const user = await getUser(username)
-    if (!user) return NextResponse.json({ error: 'Credenziali non valide' }, { status: 401 })
-    const valid = await bcrypt.compare(password, user.password)
-    if (!valid) return NextResponse.json({ error: 'Credenziali non valide' }, { status: 401 })
-    const token = await signToken({ username: user.username, role: user.role })
-    const res = NextResponse.json({ username: user.username, role: user.role })
-    res.cookies.set('session', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', maxAge: 60 * 60 * 24 * 7, path: '/' })
-    return res
-  } catch { return NextResponse.json({ error: 'Errore server' }, { status: 500 }) }
+    const { name: raw } = await request.json()
+    const { name, error } = normalizeName(raw)
+    if (error) return NextResponse.json({ error }, { status: 400 })
+    const user = await ensurePlayer(name)
+    const active = await getActiveSession()
+    if (active) await setSessionParticipation(active.id, user.username, true)
+    return setSessionCookie(NextResponse.json({ username: user.username, role: user.role }), { username: user.username, role: user.role })
+  } catch (e) { console.error(e); return NextResponse.json({ error: 'Errore server' }, { status: 500 }) }
 }

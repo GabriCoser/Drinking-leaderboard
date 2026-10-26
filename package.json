@@ -9,12 +9,10 @@
   },
   "dependencies": {
     "@vercel/blob": "^2.4.0",
-    "@vercel/kv": "^2.0.0",
     "bcryptjs": "^2.4.3",
-    "browser-image-compression": "^2.0.2",
     "ioredis": "^5.11.1",
     "jose": "^5.2.4",
-    "next": "14.2.3",
+    "next": "14.2.35",
     "react": "^18",
     "react-dom": "^18",
     "sharp": "^0.34.5"
