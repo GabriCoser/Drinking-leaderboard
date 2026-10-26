@@ -1,46 +1,51 @@
-import Redis from 'ioredis'
+import { MongoClient } from 'mongodb'
 import { DEFAULT_DRINKS, pointsFor } from './drinks.js'
 import { sumPoints, countDrinks, inSession } from './score.js'
 
 // ---------- storage ----------
-// In produzione serve REDIS_URL. In sviluppo, senza REDIS_URL, si usa un archivio in memoria
-// (si azzera al riavvio del server) così l'app si prova in locale senza Redis.
-let _client = null
-function getRedis() {
-  if (!_client) {
-    const isTLS = process.env.REDIS_URL.startsWith('rediss://')
-    _client = new Redis(process.env.REDIS_URL, { maxRetriesPerRequest: 3, connectTimeout: 5000, ...(isTLS ? { tls: { rejectUnauthorized: false } } : {}) })
-    _client.on('error', (err) => console.error('[Redis] connection error:', err.message))
+let _clientPromise = globalThis.__drinkboardMongoClientPromise || null
+async function getCollection() {
+  const uri = process.env.MONGODB_URI
+  if (!uri) throw new Error('MONGODB_URI environment variable is not set')
+  if (!_clientPromise) {
+    const client = new MongoClient(uri)
+    _clientPromise = client.connect().catch(error => {
+      _clientPromise = null
+      globalThis.__drinkboardMongoClientPromise = null
+      throw error
+    })
+    globalThis.__drinkboardMongoClientPromise = _clientPromise
   }
-  return _client
+  const client = await _clientPromise
+  return client.db().collection('app_state')
 }
-const RELEASE_LUA = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end"
-const redisKV = {
-  get: k => getRedis().get(k),
-  set: k_v => getRedis().set(...k_v),
-  acquire: async (k, token, ttl) => (await getRedis().set(k, token, 'PX', ttl, 'NX')) === 'OK',
-  release: async (k, token) => {
-    try { await getRedis().eval(RELEASE_LUA, 1, k, token) }
-    catch { if (await getRedis().get(k) === token) await getRedis().del(k) }
+const mongoKV = {
+  get: async key => (await (await getCollection()).findOne({ _id: key }))?.value ?? null,
+  set: async ([key, value]) => {
+    await (await getCollection()).updateOne({ _id: key }, { $set: { value } }, { upsert: true })
   },
-}
-function memoryKV() {
-  const m = globalThis.__drinkboardMem || (globalThis.__drinkboardMem = new Map())
-  const live = k => { const v = m.get(k); if (v && v.exp && v.exp < Date.now()) { m.delete(k); return undefined } return v }
-  return {
-    get: async k => live(k)?.val ?? null,
-    set: async ([k, val]) => { m.set(k, { val }) },
-    acquire: async (k, token, ttl) => { if (live(k)) return false; m.set(k, { val: token, exp: Date.now() + ttl }); return true },
-    release: async (k, token) => { if (live(k)?.val === token) m.delete(k) },
-  }
+  acquire: async (key, token, ttl) => {
+    const collection = await getCollection()
+    try {
+      const result = await collection.updateOne(
+        { _id: key, $or: [{ expiresAt: { $lte: new Date() } }, { expiresAt: { $exists: false } }] },
+        { $set: { value: token, expiresAt: new Date(Date.now() + ttl) } },
+        { upsert: true },
+      )
+      return result.modifiedCount === 1 || result.upsertedCount === 1
+    } catch (error) {
+      if (error?.code === 11000) return false
+      throw error
+    }
+  },
+  release: async (key, token) => {
+    await (await getCollection()).deleteOne({ _id: key, value: token })
+  },
 }
 let _kv = null
 function kv() {
-  if (_kv) return _kv
-  if (process.env.REDIS_URL) return (_kv = redisKV)
-  if (process.env.NODE_ENV === 'production') throw new Error('REDIS_URL environment variable is not set')
-  console.warn('[db] REDIS_URL non impostato: uso un archivio in memoria (solo sviluppo)')
-  return (_kv = memoryKV())
+  if (!_kv) _kv = mongoKV
+  return _kv
 }
 async function read(key, fallback) { const d = await kv().get(key); return d ? JSON.parse(d) : fallback }
 async function write(key, data) { await kv().set([key, JSON.stringify(data)]) }

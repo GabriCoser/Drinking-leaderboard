@@ -32,12 +32,16 @@ Si attiva scegliendo il tema "Halloween" quando si crea l'evento (senza evento, 
 
 | Variabile | Obbligatoria | A cosa serve |
 |---|---|---|
-| `REDIS_URL` | in produzione | Database (Redis). In sviluppo, se manca, si usa un archivio in memoria. |
+| `MONGODB_URI` | sì, in tutti gli ambienti | URI di connessione MongoDB. Può includere il nome del database, ad esempio `drinking_leaderboard`. |
 | `JWT_SECRET` | in produzione | Firma dei cookie di sessione. |
 | `ADMIN_PASSWORD` | consigliata | Password admin. Se manca, il primo che apre "Area admin" sceglie la password. |
 | `BLOB_READ_WRITE_TOKEN` | per le foto | Vercel Blob, per foto profilo e foto dell'evento. |
 
+I dati precedentemente salvati in Redis non vengono copiati automaticamente in MongoDB.
+
 ## Sviluppo
+
+Configura `MONGODB_URI` in `.env.local` prima di avviare l'app.
 
 ```bash
 npm install
