@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { CATEGORIES, THEMED_CATEGORIES } from '@/lib/drinks'
+import { CATEGORIES, THEMED_CATEGORIES, AMPOLLA_CONTENTS, AMPOLLA_HINT, isAmpolla, ampollaPoints } from '@/lib/drinks'
 import { THEMES, themeOf, isWitchingHour } from '@/lib/theme'
 import { sumPoints, countDrinks, inSession, isBonus, isAlcoholic, standingsFor, costumeWinner, rankOf } from '@/lib/score'
 import Podium from '@/components/Podium'
@@ -68,6 +68,7 @@ export default function PlayerView({ user, onLogout }) {
   const [challenges, setChallenges] = useState([])
   const [favorites, setFavorites] = useState([])
   const [note, setNote] = useState('')
+  const [ampContent, setAmpContent] = useState(null)
   const [challengeTarget, setChallengeTarget] = useState(null)
   const [openCats, setOpenCats] = useState({ ampolle: true, halloween: true, birra: true })
   const [finale, setFinale] = useState(null)
@@ -155,9 +156,9 @@ export default function PlayerView({ user, onLogout }) {
   useEffect(() => { load(); const i = setInterval(load, 15000); return () => clearInterval(i) }, [load])
   useEffect(() => { const i = setInterval(() => setNow(Date.now()), 10000); return () => clearInterval(i) }, [])
   async function confirmAdd() {
-    const d = confirmDrink, n = note
-    setConfirmDrink(null); setNote('')
-    const { ok, status, data } = await api('/api/log', 'POST', { drinkId: d.id, foodContext: food, note: n || null })
+    const d = confirmDrink, n = note, contentId = ampContent
+    setConfirmDrink(null); setNote(''); setAmpContent(null)
+    const { ok, status, data } = await api('/api/log', 'POST', { drinkId: d.id, contentId, foodContext: food, note: n || null })
     if (status === 401) return onLogout()
     if (!ok) pushToast('⚠️ ' + (data.error || 'Errore'))
     else if (d.abv === 0) pushToast(isHw ? '💧 Anche i vampiri si idratano. Bravo!' : '💧 Idratazione registrata. Bravo!')
@@ -257,11 +258,17 @@ export default function PlayerView({ user, onLogout }) {
           <div style={{fontSize:'3rem',marginBottom:'0.5rem'}}>{confirmDrink.emoji}</div>
           <h2 style={{fontFamily:'Bebas Neue',fontSize:'2rem',color:'var(--accent)',marginBottom:'0.25rem'}}>{confirmDrink.name}</h2>
           {confirmDrink.desc && <p style={{color:'var(--text)',fontSize:'0.9rem',marginBottom:'0.4rem',lineHeight:1.35}}>{confirmDrink.desc}</p>}
-          <p style={{color:'var(--muted)',fontSize:'0.85rem',marginBottom:'1rem'}}>{confirmDrink.ml}ml / {confirmDrink.abv}% / {confirmDrink.points} punti</p>
+          {isAmpolla(confirmDrink) ? <div style={{marginBottom:'1rem'}}>
+            <p style={{color:'var(--text)',fontSize:'0.9rem',marginBottom:'0.5rem',lineHeight:1.35}}>{AMPOLLA_HINT}</p>
+            <p style={{color:'var(--muted)',fontSize:'0.85rem',marginBottom:'0.5rem'}}>Cosa c&apos;era dentro?</p>
+            <div style={{display:'flex',gap:'0.4rem'}}>
+              {AMPOLLA_CONTENTS.map(c => <button key={c.id} onClick={()=>setAmpContent(c.id)} style={s.btn(ampContent===c.id?'var(--accent)':'var(--surface2)',ampContent===c.id?'var(--accent-ink)':'var(--text)',{flex:1,fontSize:'0.85rem',padding:'0.5rem 0.3rem',lineHeight:1.25,border:'1px solid var(--border)'})}>{c.emoji}<br/>{c.name}<br/>{c.points} pt</button>)}
+            </div>
+          </div> : <p style={{color:'var(--muted)',fontSize:'0.85rem',marginBottom:'1rem'}}>{confirmDrink.ml}ml / {confirmDrink.abv}% / {confirmDrink.points} punti</p>}
           <input style={{...s.input,marginBottom:'1rem',fontSize:'0.85rem'}} value={note} placeholder="Nota (opzionale): dove, con chi..." onChange={e=>setNote(e.target.value)} />
           <div style={{display:'flex',gap:'0.75rem'}}>
-            <button onClick={()=>{setConfirmDrink(null);setNote('')}} style={s.btn('var(--border)','var(--muted)',{flex:1,padding:'0.8rem',fontSize:'1.2rem'})}>Annulla</button>
-            <button onClick={confirmAdd} style={s.btn('var(--accent)','var(--accent-ink)',{flex:1,padding:'0.8rem',fontSize:'1.2rem'})}>Aggiungi</button>
+            <button onClick={()=>{setConfirmDrink(null);setNote('');setAmpContent(null)}} style={s.btn('var(--border)','var(--muted)',{flex:1,padding:'0.8rem',fontSize:'1.2rem'})}>Annulla</button>
+            <button onClick={confirmAdd} disabled={isAmpolla(confirmDrink)&&!ampContent} style={s.btn('var(--accent)','var(--accent-ink)',{flex:1,padding:'0.8rem',fontSize:'1.2rem',opacity:isAmpolla(confirmDrink)&&!ampContent?0.4:1})}>Aggiungi</button>
           </div>
         </div>
       </div>
@@ -415,8 +422,8 @@ export default function PlayerView({ user, onLogout }) {
                 const fav = favorites.includes(drink.id)
                 return <div key={drink.id} onClick={()=>canDrink&&setConfirmDrink(drink)} style={{ ...s.card(fav), display:'flex', alignItems:'center', gap:'1rem', border:`1px solid ${fav?'var(--accent-dim)':'var(--border)'}`, cursor:canDrink?'pointer':'not-allowed', opacity:canDrink?1:0.5, width:'100%', textAlign:'left' }}>
                   <span style={{ fontSize:'1.8rem' }}>{drink.emoji}</span>
-                  <div style={{ flex:1 }}><div style={{ color:'var(--text)', fontSize:'1rem', fontWeight:600 }}>{drink.name}</div>{drink.desc && <div style={{ color:'var(--text)', opacity:0.75, fontSize:'0.78rem', lineHeight:1.3, margin:'0.1rem 0' }}>{drink.desc}</div>}<div style={{ color:'var(--muted)', fontSize:'0.75rem' }}>{drink.ml}ml / {drink.abv > 0 ? drink.abv + '%' : 'analcolico'}</div></div>
-                  <div style={{ textAlign:'right' }}><div style={{ fontFamily:'Bebas Neue', fontSize:'1.4rem', color:drink.points?'var(--accent)':'var(--ok)' }}>{drink.points}</div><div style={{ color:'var(--muted)', fontSize:'0.7rem' }}>punti</div></div>
+                  <div style={{ flex:1 }}><div style={{ color:'var(--text)', fontSize:'1rem', fontWeight:600 }}>{drink.name}</div>{drink.desc && <div style={{ color:'var(--text)', opacity:0.75, fontSize:'0.78rem', lineHeight:1.3, margin:'0.1rem 0' }}>{drink.desc}</div>}{!isAmpolla(drink) && <div style={{ color:'var(--muted)', fontSize:'0.75rem' }}>{drink.ml}ml / {drink.abv > 0 ? drink.abv + '%' : 'analcolico'}</div>}</div>
+                  <div style={{ textAlign:'right' }}><div style={{ fontFamily:'Bebas Neue', fontSize:'1.4rem', color:drink.points?'var(--accent)':'var(--ok)' }}>{isAmpolla(drink) ? ampollaPoints() : drink.points}</div><div style={{ color:'var(--muted)', fontSize:'0.7rem' }}>punti</div></div>
                   <button onClick={e=>{e.stopPropagation();toggleFav(drink.id)}} style={{background:'none',border:'none',fontSize:'1.3rem',cursor:'pointer',padding:'0.2rem',opacity:fav?1:0.35}} title={fav?'Rimuovi dai preferiti':'Aggiungi ai preferiti'}>⭐</button>
                 </div>
               }
@@ -435,6 +442,7 @@ export default function PlayerView({ user, onLogout }) {
                       <span style={{ fontFamily:'Bebas Neue', fontSize:'1.2rem', color:openC?'var(--accent)':'var(--text)', letterSpacing:'0.05em' }}>{label}</span>
                       <span style={{ color:'var(--muted)', fontSize:'0.8rem' }}>{list.length} {openC?'▲':'▼'}</span>
                     </button>
+                    {openC && key==='ampolle' && <div style={{ color:'var(--muted)', fontSize:'0.8rem', textAlign:'center', marginTop:'-0.25rem' }}>🎲 {AMPOLLA_HINT}: scegli cosa c&apos;era quando la segni</div>}
                     {openC && list.map(renderDrink)}
                   </div>
                 })}

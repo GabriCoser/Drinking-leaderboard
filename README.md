@@ -22,7 +22,7 @@ Esempi: Radler 1 · Spritz 3 · Pinta 5 · Gin Tonic 4 · Negroni 5 · Shot vodk
 Si attiva scegliendo il tema "Halloween" quando si crea l'evento (senza evento, dal 20 ottobre al 2 novembre l'app è già a tema).
 
 - Grafica spettrale: zucca e viola, luna, pipistrelli, ragno, nebbia, font horror.
-- **🧪 Ampolle della serata**: le 24 ampolle delle etichette (Sangue di Vampiro, Elisir del Diavolo, Fuoco Infernale...), tutte con lo stesso punteggio di uno shot (3 punti).
+- **🧪 Ampolle della serata**: le 24 ampolle delle etichette (Sangue di Vampiro, Elisir del Diavolo, Fuoco Infernale...), Dentro c'è a sorpresa uno spritz, un drink alla vodka o un rum e cola: chi la beve dice cosa c'era e prende i punti di quel drink (3-4).
 - **Pozioni di Halloween** nel menu con nomi a tema e, sotto, cos'è davvero il drink (es. Sangue di Vampiro → Bloody Mary), con punti calcolati dalla stessa formula.
 - **🚪 Dolcetto o Scherzetto** (ogni 30 minuti): 🍬 dolcetto +2, 👻 scherzetto (una prova scema o un'ampolla da bere: +3 se la fai, e l'ampolla viene segnata tra i drink) o, raramente, 🧛 morso del vampiro (rubi 2 punti a chi è in testa).
 - **🧟 Miglior costume**: si vota dall'app, il vincitore compare sul podio finale e in TV.

@@ -19,10 +19,26 @@ export const CATEGORIES = [
 export const THEMED_CATEGORIES = { halloween: ['ampolle', 'halloween'] }
 // desc (opzionale): cos'è davvero il drink, mostrato sotto il nome
 const d = (id, name, emoji, ml, abv, category, desc) => ({ id, name, emoji, ml, abv, category, ...(desc ? { desc } : {}), points: pointsFor(ml, abv) })
-// Ampolle della serata di Halloween (le etichette stampate): punteggio unico per tutte,
-// come uno shot da 40 ml al 35% = 3 punti
-const AMPOLLA = { ml: 40, abv: 35, desc: 'Ampolla della serata' }
-const a = (id, name, emoji) => d('amp_' + id, name, emoji, AMPOLLA.ml, AMPOLLA.abv, 'ampolle', AMPOLLA.desc)
+// Ampolle della serata di Halloween (le etichette stampate). Dentro c'è, a sorpresa, uno di questi
+// drink (l'etichetta non c'entra): chi la beve dice cosa c'era e prende i punti del drink vero.
+export const AMPOLLA_CONTENTS = [
+  { id: 'spritz', name: 'Spritz', emoji: '🍹', ml: 200, abv: 8 },
+  { id: 'vodka', name: 'Drink alla vodka', emoji: '🍸', ml: 200, abv: 10 },
+  { id: 'rumcola', name: 'Rum e cola', emoji: '🥃', ml: 180, abv: 11 },
+].map(c => ({ ...c, points: pointsFor(c.ml, c.abv) }))
+export const isAmpolla = drink => drink?.category === 'ampolle'
+// il drink da registrare per un'ampolla col contenuto scelto (null se il contenuto non è valido)
+export function ampollaDrink(ampolla, contentId) {
+  const c = AMPOLLA_CONTENTS.find(x => x.id === contentId)
+  return c ? { ...ampolla, name: `${ampolla.name} (${c.name})`, ml: c.ml, abv: c.abv, points: c.points } : null
+}
+// punti mostrati nel menu per le ampolle, es. "3-4"
+export function ampollaPoints() {
+  const p = AMPOLLA_CONTENTS.map(c => c.points), lo = Math.min(...p), hi = Math.max(...p)
+  return lo === hi ? String(lo) : `${lo}-${hi}`
+}
+const a = (id, name, emoji) => d('amp_' + id, name, emoji, AMPOLLA_CONTENTS[0].ml, AMPOLLA_CONTENTS[0].abv, 'ampolle')
+export const AMPOLLA_HINT = 'Dentro, a sorpresa: spritz, drink alla vodka o rum e cola'
 export const AMPOLLE = [
   a('vampiro', 'Sangue di Vampiro', '🩸'),
   a('strega', 'Pozione della Strega', '🧙'),

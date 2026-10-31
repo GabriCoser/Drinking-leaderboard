@@ -214,7 +214,7 @@ export async function removeDrinkEntry(entryId, username) {
 
 // ---------- catalogo ----------
 // Aumentare CATALOG_VERSION per ricaricare i drink di default (quelli custom dell'admin restano)
-const CATALOG_VERSION = 5
+const CATALOG_VERSION = 6
 export async function getDrinksCatalog() {
   const v = parseInt(await kv().get('drinks_catalog_version') || '0', 10)
   if (v >= CATALOG_VERSION) {

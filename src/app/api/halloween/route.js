@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { getActiveSession, getHalloweenState, updateHalloween, addBonusEntries, getDrinkLog, setSessionParticipation, getDrinksCatalog, addDrinkEntry } from '@/lib/db'
 import { themeOf } from '@/lib/theme'
+import { ampollaDrink } from '@/lib/drinks'
 import { sumPoints, inSession } from '@/lib/score'
 import { KNOCK_COOLDOWN_MS, POINTS, TREATS, DARES, AMPOLLA_DARES, pick } from '@/lib/halloween'
 
@@ -31,7 +32,7 @@ export async function POST(request) {
   try {
     const { me, active, error } = await context()
     if (error) return error
-    const { action, done, candidate } = await request.json()
+    const { action, done, candidate, contentId } = await request.json()
     const sid = active.id
     const bonus = (username, bonusType, name, emoji, points) => ({ username, sessionId: sid, bonusType, name, emoji, points })
     if (Array.isArray(active.participants) && !active.participants.includes(me)) await setSessionParticipation(sid, me, true)
@@ -82,11 +83,13 @@ export async function POST(request) {
       const result = await updateHalloween(sid, async st => {
         const dare = st.dares[me]
         if (!dare) return { status: 404, body: { error: 'Nessuno scherzetto in corso' } }
+        if (!done) { delete st.dares[me]; return { body: { done: false, points: 0 } } }
+        // scherzetto con ampolla: si dice cosa c'era dentro e l'ampolla finisce anche tra i drink
+        const ampolla = dare.drinkId ? (await getDrinksCatalog()).find(d => d.id === dare.drinkId) : null
+        const amp = ampolla ? ampollaDrink(ampolla, contentId) : null
+        if (ampolla && !amp) return { status: 400, body: { error: "Scegli cosa c'era nell'ampolla" } }
         delete st.dares[me]
-        if (!done) return { body: { done: false, points: 0 } }
         await addBonusEntries([bonus(me, 'dare', 'Scherzetto superato', '👻', POINTS.dare)])
-        // scherzetto con ampolla: l'ampolla bevuta finisce anche tra i drink
-        const amp = dare.drinkId ? (await getDrinksCatalog()).find(d => d.id === dare.drinkId) : null
         if (amp) await addDrinkEntry(me, amp, sid)
         return { body: { done: true, points: POINTS.dare + (amp?.points || 0), drink: amp?.name || null } }
       })

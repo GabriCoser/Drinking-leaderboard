@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
+import { isAmpolla, ampollaDrink } from '@/lib/drinks'
 import { getDrinkLog, addDrinkEntry, removeDrinkEntry, getActiveSession, updateDrinkNote, getDrinksCatalog, setSessionParticipation, getUser } from '@/lib/db'
 const FOOD = ['non_specificato', 'stomaco_vuoto', 'cibo_leggero', 'pasto_completo']
 export async function GET(request) {
@@ -19,10 +20,13 @@ export async function POST(request) {
     if (!session || session.role === 'admin' || !await getUser(session.username)) return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 })
     const active = await getActiveSession()
     if (!active) return NextResponse.json({ error: 'Nessun evento attivo' }, { status: 400 })
-    const { drinkId, foodContext, note } = await request.json()
+    const { drinkId, contentId, foodContext, note } = await request.json()
     // punti, ml e gradazione arrivano sempre dal catalogo, mai dal client
-    const drink = (await getDrinksCatalog()).find(d => d.id === drinkId)
-    if (!drink) return NextResponse.json({ error: 'Drink non trovato' }, { status: 404 })
+    const found = (await getDrinksCatalog()).find(d => d.id === drinkId)
+    if (!found) return NextResponse.json({ error: 'Drink non trovato' }, { status: 404 })
+    // ampolla: i punti sono quelli del drink che c'era dentro
+    const drink = isAmpolla(found) ? ampollaDrink(found, contentId) : found
+    if (!drink) return NextResponse.json({ error: "Scegli cosa c'era nell'ampolla" }, { status: 400 })
     // chi aggiunge un drink partecipa all'evento
     if (Array.isArray(active.participants) && !active.participants.includes(session.username)) await setSessionParticipation(active.id, session.username, true)
     const entry = await addDrinkEntry(session.username, drink, active.id, FOOD.includes(foodContext) ? foodContext : 'non_specificato', note ? String(note).slice(0, 140) : null)
