@@ -67,6 +67,10 @@ h1 { font-family: var(--font-title); }
 
 select option { background: var(--surface2); color: var(--text); }
 
+/* logo della schermata di caricamento: segue il tema già prima che l'app carichi i dati */
+.loading-logo::before { content: '🍺'; }
+[data-theme="halloween"] .loading-logo::before { content: '🎃'; }
+
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(16px); }
   to   { opacity: 1; transform: translateY(0); }

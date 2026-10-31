@@ -110,7 +110,7 @@ export default function Home() {
   }, [])
   const handleLogin = useCallback(u => { setUser(u); setState(u.role==='admin'?'admin':'player') }, [])
   const handleLogout = useCallback(() => { setUser(null); setState('login') }, [])
-  if (state==='loading') return <main style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh' }}><div style={{ textAlign:'center' }}><div style={{ fontSize:'3rem' }}>🍺</div><p style={{ color:'var(--muted)' }}>Caricamento...</p></div></main>
+  if (state==='loading') return <main style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh' }}><div style={{ textAlign:'center' }}><div className="loading-logo" aria-hidden="true" style={{ fontSize:'3rem' }} /><p style={{ color:'var(--muted)' }}>Caricamento...</p></div></main>
   if (state==='login') return <JoinScreen onLogin={handleLogin} />
   if (state==='admin') return <AdminPanel onLogout={handleLogout} />
   return <PlayerView user={user} onLogout={handleLogout} />
