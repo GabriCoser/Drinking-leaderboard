@@ -9,7 +9,7 @@ function fmtLeft(ms) { const m = Math.floor(ms / 60000), sec = Math.floor((ms % 
 function KnockResult({ result, onClose }) {
   const view = {
     treat: { emoji: '🍬', title: 'DOLCETTO!', text: result.text, pts: `+${result.points} punti` },
-    trick: { emoji: '👻', title: 'SCHERZETTO!', text: result.dare?.text, pts: 'Fallo e guadagni +3 punti' },
+    trick: { emoji: result.dare?.drinkId ? '🧪' : '👻', title: 'SCHERZETTO!', text: result.dare?.text, pts: result.dare?.drinkId ? "Bevila: +3 punti, più i punti dell'ampolla" : 'Fallo e guadagni +3 punti' },
     bite: { emoji: '🧛', title: 'MORSO DEL VAMPIRO!', text: `Hai succhiato ${result.points} punti a ${result.victim}, che era in testa!`, pts: `+${result.points} a te, -${result.points} a ${result.victim}` },
     spared: { emoji: '🦇', title: 'IL VAMPIRO HA FAME...', text: 'Voleva mordere chi è in testa, ma in testa ci sei tu. Per stavolta ti risparmia.', pts: `+${result.points} punto di consolazione` },
   }[result.outcome]
@@ -43,7 +43,7 @@ export function HalloweenTab({ hw, setHw, me, participants, players, onChange, p
     return data
   }
   async function knock() { const d = await post({ action: 'knock' }); if (d) setResult(d) }
-  async function dare(done) { const d = await post({ action: 'dare', done }); if (d) pushToast(done ? '👻 Scherzetto superato! +3' : '🐔 Fifone... niente punti stavolta') }
+  async function dare(done) { const d = await post({ action: 'dare', done }); if (d) pushToast(!done ? '🐔 Fifone... niente punti stavolta' : d.drink ? `🧪 ${d.drink} bevuta! +${d.points}` : '👻 Scherzetto superato! +3') }
   async function vote(candidate) { const d = await post({ action: 'vote', candidate }); if (d) pushToast(`🧟 Hai votato ${candidate}`) }
   const others = participants.filter(u => u !== me)
   const votes = hw.votes || {}
@@ -54,14 +54,14 @@ export function HalloweenTab({ hw, setHw, me, participants, players, onChange, p
       <div style={s.card(true)}>
         <h3 style={s.h3()}>🚪 DOLCETTO O SCHERZETTO?</h3>
         <p style={{ color: 'var(--muted)', fontSize: '0.8rem', marginBottom: '0.9rem', lineHeight: 1.4 }}>
-          Bussa alla porta della strega ogni 30 minuti: 🍬 dolcetto (+2), 👻 scherzetto (una prova, +3 se la fai) o, raramente, 🧛 il morso del vampiro: rubi 2 punti a chi è in testa!
+          Bussa alla porta della strega ogni 30 minuti: 🍬 dolcetto (+2), 👻 scherzetto (una prova o un'ampolla da bere, +3 se la fai) o, raramente, 🧛 il morso del vampiro: rubi 2 punti a chi è in testa!
         </p>
         {hw.dare ? (
           <div style={{ background: 'var(--bg)', border: '1px dashed var(--accent)', borderRadius: '10px', padding: '0.9rem' }}>
             <div style={{ color: 'var(--accent)', fontFamily: 'Bebas Neue', fontSize: '1rem', marginBottom: '0.3rem' }}>👻 IL TUO SCHERZETTO</div>
             <p style={{ color: 'var(--text)', fontSize: '1rem', marginBottom: '0.75rem', lineHeight: 1.4 }}>{hw.dare.text}</p>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button disabled={busy} onClick={() => dare(true)} style={s.btn('var(--ok)', 'var(--accent-ink)', { flex: 1, padding: '0.6rem' })}>✅ Fatto! (+3)</button>
+              <button disabled={busy} onClick={() => dare(true)} style={s.btn('var(--ok)', 'var(--accent-ink)', { flex: 1, padding: '0.6rem' })}>{hw.dare.drinkId ? '🧪 Bevuta! (+3)' : '✅ Fatto! (+3)'}</button>
               <button disabled={busy} onClick={() => dare(false)} style={s.btn('var(--border)', 'var(--muted)', { flex: 1, padding: '0.6rem' })}>🐔 Passo</button>
             </div>
           </div>

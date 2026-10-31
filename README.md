@@ -22,8 +22,9 @@ Esempi: Radler 1 · Spritz 3 · Pinta 5 · Gin Tonic 4 · Negroni 5 · Shot vodk
 Si attiva scegliendo il tema "Halloween" quando si crea l'evento (senza evento, dal 20 ottobre al 2 novembre l'app è già a tema).
 
 - Grafica spettrale: zucca e viola, luna, pipistrelli, ragno, nebbia, font horror.
+- **🧪 Ampolle della serata**: le 24 ampolle delle etichette (Sangue di Vampiro, Elisir del Diavolo, Fuoco Infernale...), tutte con lo stesso punteggio di uno shot (3 punti).
 - **Pozioni di Halloween** nel menu con nomi a tema e, sotto, cos'è davvero il drink (es. Sangue di Vampiro → Bloody Mary), con punti calcolati dalla stessa formula.
-- **🚪 Dolcetto o Scherzetto** (ogni 30 minuti): 🍬 dolcetto +2, 👻 scherzetto (una prova scema: +3 se la fai) o, raramente, 🧛 morso del vampiro (rubi 2 punti a chi è in testa).
+- **🚪 Dolcetto o Scherzetto** (ogni 30 minuti): 🍬 dolcetto +2, 👻 scherzetto (una prova scema o un'ampolla da bere: +3 se la fai, e l'ampolla viene segnata tra i drink) o, raramente, 🧛 morso del vampiro (rubi 2 punti a chi è in testa).
 - **🧟 Miglior costume**: si vota dall'app, il vincitore compare sul podio finale e in TV.
 - **Easter egg**: toccare 5 volte il logo fa "BOO!"; tra mezzanotte e 00:13 è l'ora delle streghe e la luna diventa rossa.
 - Achievement a tema.
@@ -32,7 +33,7 @@ Si attiva scegliendo il tema "Halloween" quando si crea l'evento (senza evento, 
 
 | Variabile | Obbligatoria | A cosa serve |
 |---|---|---|
-| `MONGODB_URI` | sì, in tutti gli ambienti | URI di connessione MongoDB. Può includere il nome del database, ad esempio `drinking_leaderboard`. |
+| `MONGODB_URI` | in produzione | URI di connessione MongoDB. Può includere il nome del database, ad esempio `drinking_leaderboard`. |
 | `JWT_SECRET` | in produzione | Firma dei cookie di sessione. |
 | `ADMIN_PASSWORD` | consigliata | Password admin. Se manca, il primo che apre "Area admin" sceglie la password. |
 | `BLOB_READ_WRITE_TOKEN` | per le foto | Vercel Blob, per foto profilo e foto dell'evento. |
@@ -41,7 +42,7 @@ I dati precedentemente salvati in Redis non vengono copiati automaticamente in M
 
 ## Sviluppo
 
-Configura `MONGODB_URI` in `.env.local` prima di avviare l'app.
+Configura `MONGODB_URI` in `.env.local` per usare MongoDB anche in locale; senza, l'app usa un archivio in memoria che si azzera al riavvio.
 
 ```bash
 npm install

@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
-import { getActiveSession, getHalloweenState, updateHalloween, addBonusEntries, getDrinkLog, setSessionParticipation } from '@/lib/db'
+import { getActiveSession, getHalloweenState, updateHalloween, addBonusEntries, getDrinkLog, setSessionParticipation, getDrinksCatalog, addDrinkEntry } from '@/lib/db'
 import { themeOf } from '@/lib/theme'
 import { sumPoints, inSession } from '@/lib/score'
-import { KNOCK_COOLDOWN_MS, POINTS, TREATS, DARES, pick } from '@/lib/halloween'
+import { KNOCK_COOLDOWN_MS, POINTS, TREATS, DARES, AMPOLLA_DARES, pick } from '@/lib/halloween'
 
 async function context() {
   const session = await getSession()
@@ -50,7 +50,12 @@ export async function POST(request) {
           return { body: { outcome: 'treat', text, points: POINTS.treat } }
         }
         if (roll < 0.9) {
-          st.dares[me] = { text: pick(DARES), at: Date.now() }
+          // metà degli scherzetti è un'ampolla da bere (se nel catalogo ci sono ampolle)
+          const ampolle = (await getDrinksCatalog()).filter(d => d.category === 'ampolle')
+          if (ampolle.length && Math.random() < 0.5) {
+            const amp = pick(ampolle)
+            st.dares[me] = { text: pick(AMPOLLA_DARES).replace('{a}', amp.name), drinkId: amp.id, at: Date.now() }
+          } else st.dares[me] = { text: pick(DARES), at: Date.now() }
           return { body: { outcome: 'trick', dare: st.dares[me] } }
         }
         // 🧛 Morso del vampiro: ruba punti a chi è in testa all'evento
@@ -78,8 +83,12 @@ export async function POST(request) {
         const dare = st.dares[me]
         if (!dare) return { status: 404, body: { error: 'Nessuno scherzetto in corso' } }
         delete st.dares[me]
-        if (done) await addBonusEntries([bonus(me, 'dare', 'Scherzetto superato', '👻', POINTS.dare)])
-        return { body: { done: !!done, points: done ? POINTS.dare : 0 } }
+        if (!done) return { body: { done: false, points: 0 } }
+        await addBonusEntries([bonus(me, 'dare', 'Scherzetto superato', '👻', POINTS.dare)])
+        // scherzetto con ampolla: l'ampolla bevuta finisce anche tra i drink
+        const amp = dare.drinkId ? (await getDrinksCatalog()).find(d => d.id === dare.drinkId) : null
+        if (amp) await addDrinkEntry(me, amp, sid)
+        return { body: { done: true, points: POINTS.dare + (amp?.points || 0), drink: amp?.name || null } }
       })
       return NextResponse.json({ ...result.body, state: publicState(await getHalloweenState(sid), me, sid) }, { status: result.status || 200 })
     }

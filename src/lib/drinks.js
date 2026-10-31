@@ -7,6 +7,7 @@ export function pointsFor(ml, abv) {
   return Math.max(1, Math.round(m * (a / 100) * 0.789 / 4))
 }
 export const CATEGORIES = [
+  ['ampolle', '🧪 Ampolle della serata'],
   ['halloween', '🎃 Pozioni di Halloween'],
   ['birra', '🍺 Birre'],
   ['vino', '🍷 Vino & Bollicine'],
@@ -15,14 +16,45 @@ export const CATEGORIES = [
   ['altro', '💧 Analcolici & Altro'],
 ]
 // categorie visibili solo con un certo tema evento
-export const THEMED_CATEGORIES = { halloween: 'halloween' }
+export const THEMED_CATEGORIES = { halloween: ['ampolle', 'halloween'] }
 // desc (opzionale): cos'è davvero il drink, mostrato sotto il nome
 const d = (id, name, emoji, ml, abv, category, desc) => ({ id, name, emoji, ml, abv, category, ...(desc ? { desc } : {}), points: pointsFor(ml, abv) })
+// Ampolle della serata di Halloween (le etichette stampate): punteggio unico per tutte,
+// come uno shot da 40 ml al 35% = 3 punti
+const AMPOLLA = { ml: 40, abv: 35, desc: 'Ampolla della serata' }
+const a = (id, name, emoji) => d('amp_' + id, name, emoji, AMPOLLA.ml, AMPOLLA.abv, 'ampolle', AMPOLLA.desc)
+export const AMPOLLE = [
+  a('vampiro', 'Sangue di Vampiro', '🩸'),
+  a('strega', 'Pozione della Strega', '🧙'),
+  a('diavolo', 'Elisir del Diavolo', '😈'),
+  a('amore', "Veleno d'Amore", '💘'),
+  a('ombre', 'Spirito delle Ombre', '🌑'),
+  a('tenebre', 'Liquore delle Tenebre', '🖤'),
+  a('fuoco', 'Fuoco Infernale', '🔥'),
+  a('caos', 'Pozione di Caos', '🌀'),
+  a('nettare', 'Nettare Proibito', '🐍'),
+  a('zombie', 'Brezza di Zombie', '🧟'),
+  a('longevita', 'Elisir di Longevità', '🌿'),
+  a('luna', 'Pozione di Luna Piena', '🌕'),
+  a('fantasma', 'Lacrime di Fantasma', '👻'),
+  a('goccia', 'Goccia di Strega', '🔮'),
+  a('rum', 'Rum Maledetto', '🏴‍☠️'),
+  a('grappa', 'Grappa del Baretto', '🥃'),
+  a('assenzio', 'Assenzio delle Streghe', '🧚'),
+  a('idromele', 'Idromele Oscuro', '🐝'),
+  a('punch', 'Punch Infernale', '♨️'),
+  a('amaro', 'Amaro della Morte', '💀'),
+  a('nebbia', 'Nebbia del Cimitero', '🪦'),
+  a('scintilla', 'Scintilla del Demonio', '⚡'),
+  a('gin', 'Gin della Paura', '👁️'),
+  a('zucca', 'Schiuma di Zucca', '🎃'),
+]
 export const DEFAULT_DRINKS = [
+  ...AMPOLLE,
   // Pozioni di Halloween (visibili solo negli eventi a tema Halloween)
   d('hw_pumpkin_ale', 'Birra della Zucca Stregata', '🎃', 400, 6, 'halloween', 'Pumpkin ale: birra ambrata speziata alla zucca'),
-  d('hw_witch', 'Pozione della Strega', '🧪', 160, 9, 'halloween', 'Midori Sour: liquore al melone, vodka e limone'),
-  d('hw_vampire', 'Sangue di Vampiro', '🩸', 200, 10, 'halloween', 'Bloody Mary: vodka e succo di pomodoro speziato'),
+  d('hw_witch', 'Cocktail della Strega', '🧪', 160, 9, 'halloween', 'Midori Sour: liquore al melone, vodka e limone'),
+  d('hw_vampire', 'Cocktail del Vampiro', '🍅', 200, 10, 'halloween', 'Bloody Mary: vodka e succo di pomodoro speziato'),
   d('hw_dracula_kiss', 'Bacio di Dracula', '💋', 150, 10, 'halloween', 'Prosecco con liquore ai lamponi'),
   d('hw_graveyard_punch', 'Punch del Cimitero', '⚰️', 200, 8, 'halloween', 'Punch rosso alla frutta con rum'),
   d('hw_corpse_reviver', 'Resuscita Cadaveri', '💀', 90, 22, 'halloween', 'Corpse Reviver n°2: gin, Cointreau, Lillet e limone'),

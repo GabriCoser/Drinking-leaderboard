@@ -24,4 +24,12 @@ export const DARES = [
   'Fai il verso di un pipistrello ogni volta che qualcuno dice "Halloween" per 5 minuti 🦇',
   'Mima un film horror: gli altri devono indovinarlo 🎬',
 ]
+// Scherzetti con un'ampolla da bere: {a} diventa il nome dell'ampolla estratta
+export const AMPOLLA_DARES = [
+  "La strega ti offre l'ampolla «{a}»: bevila d'un fiato 🧪",
+  "Brinda con chi ti sta a sinistra e bevi l'ampolla «{a}» 🥂",
+  "Bevi l'ampolla «{a}» senza fare smorfie 😐",
+  "Bevi l'ampolla «{a}» con la mano che non usi mai 🫲",
+  "Fai un brindisi spettrale ad alta voce, poi bevi l'ampolla «{a}» 👻",
+]
 export const pick = list => list[Math.floor(Math.random() * list.length)]

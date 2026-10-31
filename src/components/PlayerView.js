@@ -69,7 +69,7 @@ export default function PlayerView({ user, onLogout }) {
   const [favorites, setFavorites] = useState([])
   const [note, setNote] = useState('')
   const [challengeTarget, setChallengeTarget] = useState(null)
-  const [openCats, setOpenCats] = useState({ halloween: true, birra: true })
+  const [openCats, setOpenCats] = useState({ ampolle: true, halloween: true, birra: true })
   const [finale, setFinale] = useState(null)
   const [boardSel, setBoardSel] = useState(undefined) // undefined = auto (evento attivo se c'è, altrimenti di sempre)
   const [hw, setHw] = useState({ enabled: false })
@@ -226,7 +226,7 @@ export default function PlayerView({ user, onLogout }) {
   const sessPoints = u => eventBoard.find(p=>p.username===u)?.pts ?? 0
   const showHwTab = isHw && !!activeSession && hw.enabled
   const curTab = tab === 'halloween' && !showHwTab ? 'home' : tab
-  const visibleDrinks = drinks.filter(d => { const t = Object.entries(THEMED_CATEGORIES).find(([, cat]) => cat === d.category); return !t || t[0] === theme })
+  const visibleDrinks = drinks.filter(d => { const t = Object.entries(THEMED_CATEGORIES).find(([, cats]) => cats.includes(d.category)); return !t || t[0] === theme })
   const TABS = [['home','🏠'], ...(showHwTab ? [['halloween','🎃']] : []), ['drinks', isHw ? '🧪' : '🍺'], ['log','📋'], ['board','🏆'], ['photos','📸'], ['stats','📊'], ['profile','👤']]
   return (
     <>

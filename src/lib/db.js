@@ -46,10 +46,25 @@ const mongoKV = {
 const logged = (name, fn) => async (...args) => {
   try { return await fn(...args) } catch (error) { console.error(`[MongoDB] ${name} fallita:`, error?.message || error); throw error }
 }
+// In sviluppo, senza MONGODB_URI, si usa un archivio in memoria (si azzera al riavvio del server)
+function memoryKV() {
+  const m = globalThis.__drinkboardMem || (globalThis.__drinkboardMem = new Map())
+  const live = k => { const v = m.get(k); if (v && v.exp && v.exp < Date.now()) { m.delete(k); return undefined } return v }
+  return {
+    get: async k => live(k)?.val ?? null,
+    set: async ([k, val]) => { m.set(k, { val }) },
+    acquire: async (k, token, ttl) => { if (live(k)) return false; m.set(k, { val: token, exp: Date.now() + ttl }); return true },
+    release: async (k, token) => { if (live(k)?.val === token) m.delete(k) },
+  }
+}
 let _kv = null
 function kv() {
-  if (!_kv) _kv = Object.fromEntries(Object.entries(mongoKV).map(([name, fn]) => [name, logged(name, fn)]))
-  return _kv
+  if (_kv) return _kv
+  if (!process.env.MONGODB_URI && process.env.NODE_ENV !== 'production') {
+    console.warn('[db] MONGODB_URI non impostato: uso un archivio in memoria (solo sviluppo)')
+    return (_kv = memoryKV())
+  }
+  return (_kv = Object.fromEntries(Object.entries(mongoKV).map(([name, fn]) => [name, logged(name, fn)])))
 }
 async function read(key, fallback) { const d = await kv().get(key); return d ? JSON.parse(d) : fallback }
 async function write(key, data) { await kv().set([key, JSON.stringify(data)]) }
@@ -199,7 +214,7 @@ export async function removeDrinkEntry(entryId, username) {
 
 // ---------- catalogo ----------
 // Aumentare CATALOG_VERSION per ricaricare i drink di default (quelli custom dell'admin restano)
-const CATALOG_VERSION = 4
+const CATALOG_VERSION = 5
 export async function getDrinksCatalog() {
   const v = parseInt(await kv().get('drinks_catalog_version') || '0', 10)
   if (v >= CATALOG_VERSION) {
