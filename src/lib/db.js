@@ -42,9 +42,13 @@ const mongoKV = {
     await (await getCollection()).deleteOne({ _id: key, value: token })
   },
 }
+// gli errori di MongoDB (connessione, credenziali, permessi) finiscono nei log di Vercel
+const logged = (name, fn) => async (...args) => {
+  try { return await fn(...args) } catch (error) { console.error(`[MongoDB] ${name} fallita:`, error?.message || error); throw error }
+}
 let _kv = null
 function kv() {
-  if (!_kv) _kv = mongoKV
+  if (!_kv) _kv = Object.fromEntries(Object.entries(mongoKV).map(([name, fn]) => [name, logged(name, fn)]))
   return _kv
 }
 async function read(key, fallback) { const d = await kv().get(key); return d ? JSON.parse(d) : fallback }
