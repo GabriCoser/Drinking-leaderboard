@@ -49,3 +49,7 @@ npm run dev
 ```
 
 Apri http://localhost:3000 (giocatori/admin) e http://localhost:3000/tv (schermo condiviso).
+
+## Deploy
+
+Il sito è su Vercel e si aggiorna da solo: ogni push sul branch di produzione (impostato in Vercel → Settings → Environments → Production → Branch Tracking, oggi `halloween-login-eventi`) va online in un paio di minuti. Gli altri branch creano solo un'anteprima.
